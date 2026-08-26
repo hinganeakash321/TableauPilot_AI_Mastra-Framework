@@ -1,0 +1,33 @@
+<worksheet name='Sample Stacked Bar chart'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Orders+ (Sample - APAC Superstore)' name='federated.10qdv2g11ishnn1d8ylfn1hvu2ys' />
+          </datasources>
+          <datasource-dependencies datasource='federated.10qdv2g11ishnn1d8ylfn1hvu2ys'>
+            <column datatype='real' name='[Discount]' role='measure' type='quantitative' />
+            <column datatype='string' name='[Ship Mode]' role='dimension' type='nominal' />
+            <column datatype='string' name='[Sub-Category]' role='dimension' type='nominal' />
+            <column-instance column='[Ship Mode]' derivation='None' name='[none:Ship Mode:nk]' pivot='key' type='nominal' />
+            <column-instance column='[Sub-Category]' derivation='None' name='[none:Sub-Category:nk]' pivot='key' type='nominal' />
+            <column-instance column='[Discount]' derivation='Sum' name='[sum:Discount:qk]' pivot='key' type='quantitative' />
+          </datasource-dependencies>
+          <aggregation value='true' />
+        </view>
+        <style />
+        <panes>
+          <pane selection-relaxation-option='selection-relaxation-allow'>
+            <view>
+              <breakdown value='auto' />
+            </view>
+            <mark class='Automatic' />
+            <encodings>
+              <color column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Ship Mode:nk]' />
+            </encodings>
+          </pane>
+        </panes>
+        <rows>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Discount:qk]</rows>
+        <cols>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Sub-Category:nk]</cols>
+      </table>
+      <simple-id uuid='{6E3ED32E-99E8-4E8A-A1A4-C9D860C39613}' />
+    </worksheet>

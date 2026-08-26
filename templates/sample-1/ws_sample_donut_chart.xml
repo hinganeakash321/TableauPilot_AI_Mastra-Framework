@@ -1,0 +1,135 @@
+<worksheet name='Sample Donut Chart'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Orders+ (Sample - APAC Superstore)' name='federated.10qdv2g11ishnn1d8ylfn1hvu2ys' />
+          </datasources>
+          <datasource-dependencies datasource='federated.10qdv2g11ishnn1d8ylfn1hvu2ys'>
+            <column caption='0' datatype='integer' name='[Calculation_0706542093377537]' role='measure' type='quantitative' user:unnamed='Sample Donut Chart'>
+              <calculation class='tableau' formula='0' />
+            </column>
+            <column caption='0' datatype='integer' name='[Calculation_0706542093389827]' role='measure' type='quantitative' user:unnamed='Sample Donut Chart'>
+              <calculation class='tableau' formula='0' />
+            </column>
+            <column datatype='string' name='[Category]' role='dimension' type='nominal' />
+            <column datatype='real' name='[Discount]' role='measure' type='quantitative' />
+            <column datatype='real' name='[Profit]' role='measure' type='quantitative' />
+            <column-instance column='[Category]' derivation='None' name='[none:Category:nk]' pivot='key' type='nominal' />
+            <column-instance column='[Profit]' derivation='Sum' name='[pcto:sum:Profit:qk]' pivot='key' type='quantitative'>
+              <table-calc ordering-type='Rows' type='PctTotal' />
+            </column-instance>
+            <column-instance column='[Calculation_0706542093377537]' derivation='Sum' name='[sum:Calculation_0706542093377537:qk]' pivot='key' type='quantitative' />
+            <column-instance column='[Calculation_0706542093389827]' derivation='Sum' name='[sum:Calculation_0706542093389827:qk]' pivot='key' type='quantitative' />
+            <column-instance column='[Discount]' derivation='Sum' name='[sum:Discount:qk]' pivot='key' type='quantitative' />
+            <column-instance column='[Profit]' derivation='Sum' name='[sum:Profit:qk]' pivot='key' type='quantitative' />
+          </datasource-dependencies>
+          <aggregation value='true' />
+        </view>
+        <style>
+          <style-rule element='axis'>
+            <encoding attr='space' class='0' field='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Calculation_0706542093389827:qk]' field-type='quantitative' fold='true' scope='rows' synchronized='true' type='space' />
+            <format attr='display' class='0' field='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Calculation_0706542093377537:qk]' scope='rows' value='false' />
+            <format attr='display' class='0' field='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Calculation_0706542093389827:qk]' scope='rows' value='false' />
+            <format attr='tick-color' value='#00000000' />
+          </style-rule>
+          <style-rule element='header'>
+            <format attr='border-width' data-class='total' value='0' />
+            <format attr='border-style' data-class='total' value='none' />
+          </style-rule>
+          <style-rule element='pane'>
+            <format attr='border-width' data-class='total' value='0' />
+            <format attr='border-style' data-class='total' value='none' />
+          </style-rule>
+          <style-rule element='dropline'>
+            <format attr='stroke-size' value='0' />
+            <format attr='line-visibility' value='off' />
+          </style-rule>
+          <style-rule element='refline'>
+            <format attr='stroke-size' value='0' />
+            <format attr='line-visibility' value='off' />
+          </style-rule>
+          <style-rule element='gridline'>
+            <format attr='stroke-size' scope='rows' value='0' />
+            <format attr='line-visibility' scope='rows' value='off' />
+          </style-rule>
+          <style-rule element='zeroline'>
+            <format attr='stroke-size' value='0' />
+            <format attr='line-visibility' value='off' />
+          </style-rule>
+          <style-rule element='table-div'>
+            <format attr='stroke-size' scope='rows' value='0' />
+            <format attr='line-visibility' scope='rows' value='off' />
+            <format attr='stroke-size' scope='cols' value='0' />
+            <format attr='line-visibility' scope='cols' value='off' />
+          </style-rule>
+          <style-rule element='header-div'>
+            <format attr='stroke-size' scope='cols' value='0' />
+            <format attr='line-visibility' scope='cols' value='off' />
+          </style-rule>
+        </style>
+        <panes>
+          <pane selection-relaxation-option='selection-relaxation-allow'>
+            <view>
+              <breakdown value='auto' />
+            </view>
+            <mark class='Pie' />
+          </pane>
+          <pane id='1' selection-relaxation-option='selection-relaxation-allow' y-axis-name='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Calculation_0706542093377537:qk]'>
+            <view>
+              <breakdown value='auto' />
+            </view>
+            <mark class='Pie' />
+            <mark-sizing mark-sizing-setting='marks-scaling-off' />
+            <encodings>
+              <color column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Category:nk]' />
+              <wedge-size column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Discount:qk]' />
+              <size column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Profit:qk]' />
+              <text column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Category:nk]' />
+              <text column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[pcto:sum:Profit:qk]' />
+            </encodings>
+            <customized-tooltip>
+              <formatted-text>
+                <run fontcolor='#757575'>Category:&#9;</run>
+                <run bold='true'><![CDATA[<[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Category:nk]>]]></run>
+                <run>Æ&#10;</run>
+                <run fontcolor='#757575'>Discount:&#9;</run>
+                <run bold='true'><![CDATA[<[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Discount:qk]>]]></run>
+                <run>Æ&#10;</run>
+                <run fontcolor='#757575'>Profit:&#9;</run>
+                <run bold='true'><![CDATA[<[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[pcto:sum:Profit:qk]>]]></run>
+              </formatted-text>
+            </customized-tooltip>
+            <style>
+              <style-rule element='mark'>
+                <format attr='size' value='2' />
+                <format attr='mark-labels-show' value='true' />
+                <format attr='mark-labels-cull' value='true' />
+              </style-rule>
+              <style-rule element='trendline'>
+                <format attr='stroke-size' value='0' />
+                <format attr='line-visibility' value='off' />
+              </style-rule>
+            </style>
+          </pane>
+          <pane id='2' selection-relaxation-option='selection-relaxation-allow' y-axis-name='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Calculation_0706542093389827:qk]'>
+            <view>
+              <breakdown value='auto' />
+            </view>
+            <mark class='Pie' />
+            <mark-sizing mark-sizing-setting='marks-scaling-off' />
+            <customized-tooltip>
+              <formatted-text />
+            </customized-tooltip>
+            <style>
+              <style-rule element='mark'>
+                <format attr='mark-color' value='#ffffff' />
+                <format attr='size' value='1.4392818212509155' />
+              </style-rule>
+            </style>
+          </pane>
+        </panes>
+        <rows>([federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Calculation_0706542093377537:qk] + [federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Calculation_0706542093389827:qk])</rows>
+        <cols />
+      </table>
+      <simple-id uuid='{F4DFA56B-9DA9-48CF-9428-0819F234A8AD}' />
+    </worksheet>

@@ -1,0 +1,55 @@
+<worksheet name='Sample Pie Chart'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Orders+ (Sample - APAC Superstore)' name='federated.10qdv2g11ishnn1d8ylfn1hvu2ys' />
+          </datasources>
+          <datasource-dependencies datasource='federated.10qdv2g11ishnn1d8ylfn1hvu2ys'>
+            <column datatype='string' name='[Category]' role='dimension' type='nominal' />
+            <column datatype='real' name='[Discount]' role='measure' type='quantitative' />
+            <column datatype='real' name='[Profit]' role='measure' type='quantitative' />
+            <column-instance column='[Category]' derivation='None' name='[none:Category:nk]' pivot='key' type='nominal' />
+            <column-instance column='[Profit]' derivation='Sum' name='[pcto:sum:Profit:qk]' pivot='key' type='quantitative'>
+              <table-calc ordering-type='Rows' type='PctTotal' />
+            </column-instance>
+            <column-instance column='[Discount]' derivation='Sum' name='[sum:Discount:qk]' pivot='key' type='quantitative' />
+            <column-instance column='[Profit]' derivation='Sum' name='[sum:Profit:qk]' pivot='key' type='quantitative' />
+          </datasource-dependencies>
+          <aggregation value='true' />
+        </view>
+        <style />
+        <panes>
+          <pane selection-relaxation-option='selection-relaxation-allow'>
+            <view>
+              <breakdown value='auto' />
+            </view>
+            <mark class='Pie' />
+            <encodings>
+              <color column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Category:nk]' />
+              <wedge-size column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Discount:qk]' />
+              <size column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Profit:qk]' />
+              <text column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[pcto:sum:Profit:qk]' />
+              <text column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Category:nk]' />
+            </encodings>
+            <customized-label>
+              <formatted-text>
+                <run>&lt;</run>
+                <run>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Category:nk]</run>
+                <run>&gt;&#10;&lt;</run>
+                <run>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[pcto:sum:Profit:qk]</run>
+                <run>&gt;</run>
+              </formatted-text>
+            </customized-label>
+            <style>
+              <style-rule element='mark'>
+                <format attr='mark-labels-show' value='true' />
+                <format attr='mark-labels-cull' value='true' />
+              </style-rule>
+            </style>
+          </pane>
+        </panes>
+        <rows />
+        <cols />
+      </table>
+      <simple-id uuid='{393B8D7C-1219-4518-A46E-16B7DC4B7668}' />
+    </worksheet>

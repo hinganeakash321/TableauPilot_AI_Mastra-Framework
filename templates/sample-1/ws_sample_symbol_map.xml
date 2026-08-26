@@ -1,0 +1,51 @@
+<worksheet name='Sample Symbol Map'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Orders+ (Sample - APAC Superstore)' name='federated.10qdv2g11ishnn1d8ylfn1hvu2ys' />
+          </datasources>
+          <mapsources>
+            <mapsource name='Tableau' />
+          </mapsources>
+          <datasource-dependencies datasource='federated.10qdv2g11ishnn1d8ylfn1hvu2ys'>
+            <column datatype='string' name='[Country/Region]' role='dimension' semantic-role='[Country].[ISO3166_2]' type='nominal' />
+            <column datatype='string' name='[Person]' role='dimension' type='nominal' />
+            <column datatype='real' default-format='c&quot;$&quot;#,##0,,.0M;-&quot;$&quot;#,##0,,.0M' name='[Sales]' role='measure' type='quantitative' />
+            <column datatype='string' name='[State]' role='dimension' semantic-role='[State].[Name]' type='nominal' />
+            <column-instance column='[Country/Region]' derivation='None' name='[none:Country/Region:nk]' pivot='key' type='nominal' />
+            <column-instance column='[Person]' derivation='None' name='[none:Person:nk]' pivot='key' type='nominal' />
+            <column-instance column='[State]' derivation='None' name='[none:State:nk]' pivot='key' type='nominal' />
+            <column-instance column='[Sales]' derivation='Sum' name='[sum:Sales:qk]' pivot='key' type='quantitative' />
+          </datasource-dependencies>
+          <filter class='categorical' column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Person:nk]'>
+            <groupfilter function='level-members' level='[none:Person:nk]' user:ui-enumeration='all' user:ui-marker='enumerate' />
+          </filter>
+          <slices>
+            <column>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Person:nk]</column>
+          </slices>
+          <aggregation value='true' />
+        </view>
+        <style>
+          <style-rule element='map'>
+            <format attr='washout' value='0' />
+          </style-rule>
+        </style>
+        <panes>
+          <pane selection-relaxation-option='selection-relaxation-allow'>
+            <view>
+              <breakdown value='auto' />
+            </view>
+            <mark class='Automatic' />
+            <encodings>
+              <color column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:State:nk]' />
+              <size column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Sales:qk]' />
+              <lod column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Country/Region:nk]' />
+              <lod column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:State:nk]' />
+            </encodings>
+          </pane>
+        </panes>
+        <rows>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[Latitude (generated)]</rows>
+        <cols>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[Longitude (generated)]</cols>
+      </table>
+      <simple-id uuid='{C2047CEB-5B47-478E-B5BF-429BBF3F7539}' />
+    </worksheet>

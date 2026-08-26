@@ -1,0 +1,28 @@
+<worksheet name='sample area chart'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Orders+ (Sample - APAC Superstore)' name='federated.10qdv2g11ishnn1d8ylfn1hvu2ys' />
+          </datasources>
+          <datasource-dependencies datasource='federated.10qdv2g11ishnn1d8ylfn1hvu2ys'>
+            <column datatype='real' name='[Discount]' role='measure' type='quantitative' />
+            <column datatype='date' name='[Order Date]' role='dimension' type='ordinal' />
+            <column-instance column='[Discount]' derivation='Sum' name='[sum:Discount:qk]' pivot='key' type='quantitative' />
+            <column-instance column='[Order Date]' derivation='Year-Trunc' name='[tyr:Order Date:qk]' pivot='key' type='quantitative' />
+          </datasource-dependencies>
+          <aggregation value='true' />
+        </view>
+        <style />
+        <panes>
+          <pane id='1' selection-relaxation-option='selection-relaxation-allow'>
+            <view>
+              <breakdown value='auto' />
+            </view>
+            <mark class='Area' />
+          </pane>
+        </panes>
+        <rows>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Discount:qk]</rows>
+        <cols>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[tyr:Order Date:qk]</cols>
+      </table>
+      <simple-id uuid='{6048B5AC-ADEE-46EF-B57F-659E9F2F97D2}' />
+    </worksheet>

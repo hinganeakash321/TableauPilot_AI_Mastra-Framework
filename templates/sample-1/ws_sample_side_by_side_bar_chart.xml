@@ -1,0 +1,33 @@
+<worksheet name='Sample side by side bar chart'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Orders+ (Sample - APAC Superstore)' name='federated.10qdv2g11ishnn1d8ylfn1hvu2ys' />
+          </datasources>
+          <datasource-dependencies datasource='federated.10qdv2g11ishnn1d8ylfn1hvu2ys'>
+            <column datatype='string' name='[Category]' role='dimension' type='nominal' />
+            <column datatype='real' name='[Discount]' role='measure' type='quantitative' />
+            <column datatype='string' name='[Region]' role='dimension' type='nominal' />
+            <column-instance column='[Category]' derivation='None' name='[none:Category:nk]' pivot='key' type='nominal' />
+            <column-instance column='[Region]' derivation='None' name='[none:Region:nk]' pivot='key' type='nominal' />
+            <column-instance column='[Discount]' derivation='Sum' name='[sum:Discount:qk]' pivot='key' type='quantitative' />
+          </datasource-dependencies>
+          <aggregation value='true' />
+        </view>
+        <style />
+        <panes>
+          <pane selection-relaxation-option='selection-relaxation-allow'>
+            <view>
+              <breakdown value='auto' />
+            </view>
+            <mark class='Automatic' />
+            <encodings>
+              <color column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Region:nk]' />
+            </encodings>
+          </pane>
+        </panes>
+        <rows>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Discount:qk]</rows>
+        <cols>([federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Category:nk] / [federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Region:nk])</cols>
+      </table>
+      <simple-id uuid='{6A896F37-9041-44BA-958B-19A7B9FC9526}' />
+    </worksheet>

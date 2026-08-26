@@ -1,0 +1,43 @@
+<worksheet name='Sample Filled map'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Orders+ (Sample - APAC Superstore)' name='federated.10qdv2g11ishnn1d8ylfn1hvu2ys' />
+          </datasources>
+          <mapsources>
+            <mapsource name='Tableau' />
+          </mapsources>
+          <datasource-dependencies datasource='federated.10qdv2g11ishnn1d8ylfn1hvu2ys'>
+            <column datatype='string' name='[Country/Region]' role='dimension' semantic-role='[Country].[ISO3166_2]' type='nominal' />
+            <column datatype='real' default-format='c&quot;$&quot;#,##0,,.0M;-&quot;$&quot;#,##0,,.0M' name='[Sales]' role='measure' type='quantitative' />
+            <column datatype='string' name='[State]' role='dimension' semantic-role='[State].[Name]' type='nominal' />
+            <column-instance column='[Country/Region]' derivation='None' name='[none:Country/Region:nk]' pivot='key' type='nominal' />
+            <column-instance column='[State]' derivation='None' name='[none:State:nk]' pivot='key' type='nominal' />
+            <column-instance column='[Sales]' derivation='Sum' name='[sum:Sales:qk]' pivot='key' type='quantitative' />
+          </datasource-dependencies>
+          <aggregation value='true' />
+        </view>
+        <style>
+          <style-rule element='map'>
+            <format attr='washout' value='0.0' />
+          </style-rule>
+        </style>
+        <panes>
+          <pane selection-relaxation-option='selection-relaxation-allow'>
+            <view>
+              <breakdown value='auto' />
+            </view>
+            <mark class='Automatic' />
+            <encodings>
+              <lod column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Country/Region:nk]' />
+              <lod column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:State:nk]' />
+              <color column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[sum:Sales:qk]' />
+              <geometry column='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[Geometry (generated)]' />
+            </encodings>
+          </pane>
+        </panes>
+        <rows>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[Latitude (generated)]</rows>
+        <cols>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[Longitude (generated)]</cols>
+      </table>
+      <simple-id uuid='{59333A51-C63B-4F90-8A95-54C32305094C}' />
+    </worksheet>

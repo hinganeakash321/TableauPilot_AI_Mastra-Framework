@@ -1,0 +1,99 @@
+<window class='worksheet' name='Sample vertical Bar Chart'>
+      <cards>
+        <edge name='left'>
+          <strip size='160'>
+            <card type='pages' />
+            <card type='filters' />
+            <card type='marks' />
+          </strip>
+        </edge>
+        <edge name='top'>
+          <strip size='2147483647'>
+            <card type='columns' />
+          </strip>
+          <strip size='2147483647'>
+            <card type='rows' />
+          </strip>
+          <strip size='31'>
+            <card type='title' />
+          </strip>
+        </edge>
+      </cards>
+      <viewpoint>
+        <zoom type='entire-view' />
+        <highlight>
+          <color-one-way>
+            <field>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Category:nk]</field>
+            <field>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[yr:Order Date:ok]</field>
+          </color-one-way>
+        </highlight>
+      </viewpoint>
+      <simple-id uuid='{9C589DEA-48F1-43B6-A304-3E1650A23B04}' />
+    </window>
+
+<window class='worksheet' name='Sample horizontal Bar Chart'>
+      <cards>
+        <edge name='left'>
+          <strip size='160'>
+            <card type='pages' />
+            <card type='filters' />
+            <card type='marks' />
+          </strip>
+        </edge>
+        <edge name='top'>
+          <strip size='2147483647'>
+            <card type='columns' />
+          </strip>
+          <strip size='2147483647'>
+            <card type='rows' />
+          </strip>
+          <strip size='31'>
+            <card type='title' />
+          </strip>
+        </edge>
+      </cards>
+      <viewpoint>
+        <zoom type='entire-view' />
+        <highlight>
+          <color-one-way>
+            <field>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[my:Order Date:ok]</field>
+            <field>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Category:nk]</field>
+          </color-one-way>
+        </highlight>
+      </viewpoint>
+      <simple-id uuid='{F1448EF3-BC01-4A6B-8092-2BEF0D84FC3B}' />
+    </window>
+
+<window class='worksheet' name='Sample text table'>
+      <cards>
+        <edge name='left'>
+          <strip size='160'>
+            <card type='pages' />
+            <card type='filters' />
+            <card type='marks' />
+          </strip>
+        </edge>
+        <edge name='top'>
+          <strip size='2147483647'>
+            <card type='columns' />
+          </strip>
+          <strip size='2147483647'>
+            <card type='rows' />
+          </strip>
+          <strip size='31'>
+            <card type='title' />
+          </strip>
+        </edge>
+      </cards>
+      <viewpoint>
+        <zoom type='fit-width' />
+        <highlight>
+          <color-one-way>
+            <field>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Category:nk]</field>
+            <field>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Ship Mode:nk]</field>
+            <field>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:State:nk]</field>
+          </color-one-way>
+        </highlight>
+      </viewpoint>
+      <simple-id uuid='{873479FE-63BE-4031-ADFF-D8620624E475}' />
+    </window>

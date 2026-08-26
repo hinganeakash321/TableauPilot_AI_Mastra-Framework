@@ -1,0 +1,105 @@
+{
+  "source": "sample_workbook.twbx",
+  "worksheets": [
+    {
+      "name": "Sample Donut Chart",
+      "file": "ws_sample_donut_chart.xml",
+      "length": 7946
+    },
+    {
+      "name": "Sample Filled map",
+      "file": "ws_sample_filled_map.xml",
+      "length": 2404
+    },
+    {
+      "name": "Sample Highlight table",
+      "file": "ws_sample_highlight_table.xml",
+      "length": 3220
+    },
+    {
+      "name": "Sample Histogram",
+      "file": "ws_sample_histogram.xml",
+      "length": 1880
+    },
+    {
+      "name": "Sample KPI Chart",
+      "file": "ws_sample_kpi_chart.xml",
+      "length": 2019
+    },
+    {
+      "name": "Sample Pie Chart",
+      "file": "ws_sample_pie_chart.xml",
+      "length": 2879
+    },
+    {
+      "name": "Sample Stacked Bar chart",
+      "file": "ws_sample_stacked_bar_chart.xml",
+      "length": 1780
+    },
+    {
+      "name": "Sample Symbol Map",
+      "file": "ws_sample_symbol_map.xml",
+      "length": 2990
+    },
+    {
+      "name": "Sample bubble chart",
+      "file": "ws_sample_bubble_chart.xml",
+      "length": 2551
+    },
+    {
+      "name": "Sample horizontal Bar Chart",
+      "file": "ws_sample_horizontal_bar_chart.xml",
+      "length": 2699
+    },
+    {
+      "name": "Sample line chart",
+      "file": "ws_sample_line_chart.xml",
+      "length": 1830
+    },
+    {
+      "name": "Sample side by side bar chart",
+      "file": "ws_sample_side_by_side_bar_chart.xml",
+      "length": 1819
+    },
+    {
+      "name": "Sample text table",
+      "file": "ws_sample_text_table.xml",
+      "length": 3004
+    },
+    {
+      "name": "Sample tree map",
+      "file": "ws_sample_tree_map.xml",
+      "length": 2662
+    },
+    {
+      "name": "Sample vertical Bar Chart",
+      "file": "ws_sample_vertical_bar_chart.xml",
+      "length": 2697
+    },
+    {
+      "name": "Top 10 product by sales",
+      "file": "ws_top_10_product_by_sales.xml",
+      "length": 3043
+    },
+    {
+      "name": "sample area chart",
+      "file": "ws_sample_area_chart.xml",
+      "length": 1409
+    },
+    {
+      "name": "sample bar line chart",
+      "file": "ws_sample_bar_line_chart.xml",
+      "length": 3028
+    },
+    {
+      "name": "sample dual line chart",
+      "file": "ws_sample_dual_line_chart.xml",
+      "length": 2966
+    },
+    {
+      "name": "sample scatter plot",
+      "file": "ws_sample_scatter_plot.xml",
+      "length": 2251
+    }
+  ]
+}

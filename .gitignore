@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.mastra/
+*.tsbuildinfo
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+*.pem
+certs/
+
+# Mastra dev-server generated runtime output
+src/mastra/public/
+
+# Mastra local storage / telemetry
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+mastra.db*
+
+# Uploaded workbooks inbox (keep dir via .gitkeep)
+uploads/*
+!uploads/.gitkeep
+
+# Tableau working artifacts (keep dirs via .gitkeep)
+workspace/original/*
+workspace/working/*
+workspace/output/*
+!workspace/**/.gitkeep
+artifacts/builds/*
+artifacts/validated/*
+artifacts/logs/*
+!artifacts/**/.gitkeep
+
+# OS / editor
+.DS_Store
+*.log
+.vscode/
+.idea/
+
+# Sample data extracts (large)
+*.hyper

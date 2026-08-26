@@ -1,0 +1,34 @@
+<worksheet name='Sample Histogram'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Orders+ (Sample - APAC Superstore)' name='federated.10qdv2g11ishnn1d8ylfn1hvu2ys' />
+          </datasources>
+          <datasource-dependencies datasource='federated.10qdv2g11ishnn1d8ylfn1hvu2ys'>
+            <column aggregation='None' datatype='integer' name='[Discount (bin)]' role='dimension' type='quantitative'>
+              <calculation class='bin' decimals='-1' formula='[Discount]' peg='0' size='0.1165' />
+            </column>
+            <column datatype='real' name='[Discount]' role='measure' type='quantitative' />
+            <column-instance column='[Discount]' derivation='Count' name='[cnt:Discount:qk]' pivot='key' type='quantitative' />
+            <column-instance column='[Discount (bin)]' derivation='None' name='[none:Discount (bin):qk]' pivot='key' type='quantitative' />
+          </datasource-dependencies>
+          <aggregation value='true' />
+        </view>
+        <style />
+        <panes>
+          <pane selection-relaxation-option='selection-relaxation-allow'>
+            <view>
+              <breakdown value='auto' />
+            </view>
+            <mark class='Automatic' />
+            <mark-sizing custom-mark-size-in-axis-units='1.0' mark-alignment='mark-alignment-left' mark-sizing-setting='marks-scaling-on' use-custom-mark-size='false' />
+          </pane>
+        </panes>
+        <rows>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[cnt:Discount:qk]</rows>
+        <cols>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Discount (bin):qk]</cols>
+        <show-full-range>
+          <column>[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[Discount (bin)]</column>
+        </show-full-range>
+      </table>
+      <simple-id uuid='{B48D8B74-826B-48E3-88DF-80D1E0E6C1CD}' />
+    </worksheet>
