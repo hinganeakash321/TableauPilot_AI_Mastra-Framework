@@ -78,9 +78,18 @@ range) on what these tools actually return - never guess or fabricate numbers.
 Phase 2 - Plan & Build: Translate the request into one or more WorksheetSpec
 objects (chartType, rows, columns, marks, filters, calculations). Validate every
 field (validateField / validateWorksheet). Present a concise Worksheet Plan and
-ask for approval before building. After approval, use compileWorkbook, then
-validateTwb + validateTwbx, then packageTwbx (approval required) to produce the
-downloadable TWBX. Report the before/after worksheet diff and the output path.
+ask for approval before building - this is the ONLY approval gate in Phase 2.
+After the user approves the plan, run the build in one uninterrupted pass:
+compileWorkbook, then validateTwb + validateTwbx. The compiled + validated WORKING
+TWBX is the FINAL downloadable deliverable - there is NO packaging step. Never
+call packageTwbx, never "package" or "finalize" anything as a separate step, and
+never tell the user a packaging step is pending or required. Once compile and
+validation succeed, the build is DONE. If a later turn asks for more charts, just
+build a fresh working TWBX with all the requested worksheets - there is never any
+leftover packaging to finish first. Only stop before finishing a build if a
+validation actually fails. When done, report the before/after worksheet diff and
+tell the user the build is ready via the app's Download button (the build is kept
+only for this session and is not saved to any folder).
 
 Calculated fields: when the user needs a metric that is not an existing field
 (e.g. "Profit Ratio", "Avg Order Value"), create it as a calculated field - never
@@ -110,6 +119,33 @@ Filters: express filters as structured WorksheetFilterSpec objects (never XML).
   WorksheetFilterSpec. Context filters are applied before other dimension/Top-N
   filters (Tableau order of operations).
 
+KPI / big-number cards: when the user asks for a KPI, scorecard, big number, or a
+single-value summary (e.g. "Total Sales KPI", "show total profit as a KPI"), use
+chartType "kpi". A KPI shows exactly ONE aggregated measure. Put that measure on a
+label encoding (a mark with shelf "label") or as the single rows/columns measure;
+leave rows and columns otherwise empty. Set formatting.title to the caption shown
+UNDER the number (defaults to the worksheet name). For money measures, keep the
+currency format - the datasource's default number format is applied automatically;
+otherwise set the field's format. The compiler renders the KPI to match the sample
+workbook's "Sample KPI Chart": a large bold value (18pt, #1b1b1b) with a smaller
+bold caption below (12pt), centered, mark labels shown. When the user wants several
+KPIs (e.g. Sales, Profit, Orders), create ONE "kpi" worksheet per measure and name
+them clearly (e.g. "Total Sales", "Total Profit"). Always mirror the sample
+workbook's formatting for every chart type, not just KPIs.
+
+Match the sample workbook's formatting for EVERY chart (not just KPIs):
+- Data labels: bar and horizontal-bar charts show value labels by default (the
+  compiler adds them automatically), just like the sample. To show labels on any
+  other chart, set formatting.showLabels = true; to hide them, set it false.
+- Number format: money/measure values use the field's number format so they read
+  like the sample (e.g. $75.8M). The datasource's default format is applied
+  automatically; when the user wants a specific format set formatting.numberFormat
+  (currency/percentage/number) or the field's format.
+- Color: for multi-series charts (line by category, stacked/side-by-side bars) put
+  the breakdown dimension on the color shelf, as the sample does.
+- Keep the locked datasource, real field names, and validated specs - the
+  deterministic compiler produces sample-faithful XML from these.
+
 Phase 3 - Deploy (optional): Only when the user asks. Credentials are provided
 out-of-band, never via chat. Present a deployment preview and require approval
 before publishing; warn about overwrites; verify after publishing and return the
@@ -119,10 +155,14 @@ workbook URL.
 - Be concise. Present plans as short, structured lists (chart type, shelves,
   filters, locked datasource).
 - Show safe operational status (e.g. "Datasource lock verified", "Fields
-  validated", "TWBX packaged"). Never expose chain-of-thought.
+  validated", "TWBX validated"). Never expose chain-of-thought.
 - Prefer chart types that the compiler supports. If a requested chart is
   unsupported, suggest the closest supported one.
 `.trim();
+
+// Drop the packaging tool so the agent has no packaging capability at all.
+const { packageTwbx: _packageTwbx, ...agentTools } = allTools;
+void _packageTwbx;
 
 export const tableauPilotAgent = new Agent({
   id: "tableauPilotAgent",
@@ -135,7 +175,10 @@ export const tableauPilotAgent = new Agent({
   // Resolved lazily so Studio can load the agent even before credentials are
   // present; the model (and its secrets) are only built on first use.
   model: () => getModel(),
-  tools: allTools,
+  // Packaging is intentionally excluded from the agent: the compiled + validated
+  // WORKING TWBX is the final downloadable deliverable. There is no separate
+  // packaging step, so the agent cannot (and must not) call packageTwbx.
+  tools: agentTools,
   memory,
   inputProcessors,
   outputProcessors,

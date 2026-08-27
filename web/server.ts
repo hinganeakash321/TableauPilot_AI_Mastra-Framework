@@ -14,7 +14,8 @@
 import "dotenv/config";
 
 import { existsSync } from "node:fs";
-import { readFile, writeFile, stat, readdir } from "node:fs/promises";
+import { readFile, writeFile, stat, readdir, rm, mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import express, { type Request, type Response } from "express";
@@ -57,6 +58,62 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 200 * 1024 * 1024 },
 });
+
+/**
+ * Built workbooks are EPHEMERAL: they are never retained on disk. After each
+ * build we read the freshly generated `.twbx` into memory, keyed by the caller's
+ * session, then delete every on-disk build artifact. The download/deploy routes
+ * serve straight from this in-memory store, so a build only exists for the
+ * current instance (and vanishes on reset or server restart).
+ */
+type BuiltArtifact = { name: string; bytes: Buffer; sizeBytes: number; modified: string };
+const builtBySession = new Map<string, BuiltArtifact>();
+
+/** Deletes all generated `.twbx` files from the workspace working/output dirs. */
+async function purgeWorkspaceArtifacts(): Promise<void> {
+  const dirs = [
+    join(PROJECT_ROOT, WORKSPACE_ROOT, "output"),
+    join(WORKSPACE_ROOT, "output"),
+    join(PROJECT_ROOT, WORKSPACE_ROOT, "working"),
+    join(WORKSPACE_ROOT, "working"),
+  ];
+  for (const dir of dirs) {
+    if (!existsSync(dir)) continue;
+    let names: string[] = [];
+    try {
+      names = await readdir(dir);
+    } catch {
+      continue;
+    }
+    for (const n of names) {
+      if (!/\.twbx?$/i.test(n)) continue;
+      try {
+        await rm(join(dir, n), { force: true });
+      } catch {
+        // best-effort cleanup
+      }
+    }
+  }
+}
+
+/**
+ * Captures a workbook built during this request into the in-memory session store,
+ * then purges all on-disk build artifacts. Returns null when nothing new was built.
+ */
+async function captureBuild(session: string, startTs: number): Promise<BuiltArtifact | null> {
+  const built = await latestBuilt();
+  if (!built || new Date(built.modified).getTime() < startTs) return null;
+  const bytes = await readFile(built.path);
+  const artifact: BuiltArtifact = {
+    name: built.name,
+    bytes,
+    sizeBytes: bytes.length,
+    modified: built.modified,
+  };
+  builtBySession.set(session, artifact);
+  await purgeWorkspaceArtifacts();
+  return artifact;
+}
 
 /** Health check. */
 app.get("/api/health", (_req: Request, res: Response) => {
@@ -163,9 +220,9 @@ app.post("/api/chat", async (req: Request, res: Response) => {
       autoResumeSuspendedTools: true,
       maxSteps: 40,
     });
-    const after = await latestBuilt();
-    const built =
-      after && new Date(after.modified).getTime() >= startTs ? after : null;
+    // Pull any freshly built workbook into memory and delete it from disk, so
+    // nothing is retained in a folder - it only lives for this instance.
+    const built = await captureBuild(session, startTs);
     res.json({
       ok: true,
       text: (result as { text?: string }).text ?? "",
@@ -187,6 +244,7 @@ app.post("/api/reset", async (req: Request, res: Response) => {
   const { sessionId } = req.body ?? {};
   const session = typeof sessionId === "string" && sessionId.trim() ? sessionId.trim() : "";
   if (!session) return res.json({ ok: true, cleared: false });
+  builtBySession.delete(session);
   try {
     await memory.deleteThread(session);
     res.json({ ok: true, cleared: true });
@@ -196,28 +254,41 @@ app.post("/api/reset", async (req: Request, res: Response) => {
   }
 });
 
-/** Info on the most recently built workbook (output dir preferred). */
-app.get("/api/output", async (_req: Request, res: Response) => {
-  const built = await latestBuilt();
-  if (!built) return res.json({ ok: true, output: null });
+/** Info on the current in-memory build for this session (nothing on disk). */
+app.get("/api/output", (req: Request, res: Response) => {
+  const session = String(req.query.sessionId ?? "").trim();
+  const b = session ? builtBySession.get(session) : undefined;
   res.json({
     ok: true,
-    output: { name: built.name, sizeBytes: built.sizeBytes, modified: built.modified },
+    output: b ? { name: b.name, sizeBytes: b.sizeBytes, modified: b.modified } : null,
   });
 });
 
-/** Download a workbook by name (resolved from output/working/uploads). */
+/**
+ * Download the current build. Builds live only in memory (per session), so we
+ * serve straight from the in-memory buffer. A `name` fallback still allows
+ * downloading an uploaded source workbook if ever requested.
+ */
 app.get("/api/download", async (req: Request, res: Response) => {
+  const session = String(req.query.sessionId ?? "").trim();
   const name = String(req.query.name ?? "").trim();
+  const artifact = session ? builtBySession.get(session) : undefined;
   try {
-    const path = name ? resolveWorkbookPath(name) : (await latestBuilt())?.path;
-    if (!path || !existsSync(path)) {
-      return res.status(404).json({ ok: false, error: "Workbook not found." });
+    if (artifact && (!name || name === artifact.name)) {
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="${artifact.name}"`);
+      return res.send(artifact.bytes);
     }
-    const buf = await readFile(path);
-    res.setHeader("Content-Type", "application/octet-stream");
-    res.setHeader("Content-Disposition", `attachment; filename="${basename(path)}"`);
-    res.send(buf);
+    if (name) {
+      const path = resolveWorkbookPath(name);
+      if (existsSync(path)) {
+        const buf = await readFile(path);
+        res.setHeader("Content-Type", "application/octet-stream");
+        res.setHeader("Content-Disposition", `attachment; filename="${basename(path)}"`);
+        return res.send(buf);
+      }
+    }
+    return res.status(404).json({ ok: false, error: "No build available to download." });
   } catch (err) {
     res.status(404).json({ ok: false, error: errMsg(err) });
   }
@@ -231,6 +302,7 @@ app.get("/api/download", async (req: Request, res: Response) => {
 app.post("/api/deploy", async (req: Request, res: Response) => {
   const {
     name,
+    sessionId,
     serverUrl,
     siteContentUrl,
     patName,
@@ -249,28 +321,41 @@ app.post("/api/deploy", async (req: Request, res: Response) => {
       .json({ ok: false, error: `Missing required fields: ${missing.join(", ")}` });
   }
 
+  // Prefer the current in-memory build for this session (written to a transient
+  // temp file only for the duration of the publish, then deleted). Fall back to
+  // an uploaded workbook on disk when an explicit name is given.
+  const session = typeof sessionId === "string" ? sessionId.trim() : "";
+  const artifact = session ? builtBySession.get(session) : undefined;
   let filePath: string;
+  let tempDir: string | null = null;
   try {
-    filePath = name ? resolveWorkbookPath(String(name)) : (await latestBuilt())?.path ?? "";
-    if (!filePath || !existsSync(filePath)) {
-      return res.status(400).json({ ok: false, error: "No built workbook to deploy. Build one first." });
+    if (artifact && (!name || String(name) === artifact.name)) {
+      tempDir = await mkdtemp(join(tmpdir(), "tp-deploy-"));
+      filePath = join(tempDir, artifact.name);
+      await writeFile(filePath, artifact.bytes);
+    } else {
+      filePath = name ? resolveWorkbookPath(String(name)) : "";
+      if (!filePath || !existsSync(filePath)) {
+        return res.status(400).json({ ok: false, error: "No built workbook to deploy. Build one first." });
+      }
     }
   } catch (err) {
+    if (tempDir) await rm(tempDir, { recursive: true, force: true }).catch(() => {});
     return res.status(400).json({ ok: false, error: errMsg(err) });
   }
 
   const service = new TableauCloudService();
-  let session: CloudSession | null = null;
+  let cloudSession: CloudSession | null = null;
   try {
-    session = await service.signIn({
+    cloudSession = await service.signIn({
       serverUrl: String(serverUrl),
       siteContentUrl: String(siteContentUrl ?? ""),
       patName: String(patName),
       patSecret: String(patSecret),
     });
-    const project = await service.resolveProject(session, String(projectName));
+    const project = await service.resolveProject(cloudSession, String(projectName));
     const wbName = String(workbookName ?? "").trim() || basename(filePath).replace(/\.twbx?$/i, "");
-    const exists = await service.workbookExists(session, project.name, wbName);
+    const exists = await service.workbookExists(cloudSession, project.name, wbName);
     const doOverwrite = Boolean(overwrite);
     if (exists && !doOverwrite) {
       return res.status(409).json({
@@ -278,13 +363,13 @@ app.post("/api/deploy", async (req: Request, res: Response) => {
         error: `A workbook named "${wbName}" already exists in "${project.name}". Enable "Overwrite" to replace it.`,
       });
     }
-    const published = await service.publishWorkbook(session, {
+    const published = await service.publishWorkbook(cloudSession, {
       filePath,
       workbookName: wbName,
       projectId: project.id,
       overwrite: doOverwrite,
     });
-    const verified = await service.verifyWorkbook(session, published.id).catch(() => published);
+    const verified = await service.verifyWorkbook(cloudSession, published.id).catch(() => published);
     res.json({
       ok: true,
       workbook: {
@@ -298,7 +383,8 @@ app.post("/api/deploy", async (req: Request, res: Response) => {
     const code = err instanceof TableauCloudError ? err.code : "DEPLOYMENT_FAILED";
     res.status(502).json({ ok: false, code, error: errMsg(err) });
   } finally {
-    if (session) await service.signOut(session).catch(() => {});
+    if (cloudSession) await service.signOut(cloudSession).catch(() => {});
+    if (tempDir) await rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
 });
 

@@ -340,5 +340,78 @@ describe("eval: total sales KPI", () => {
     const { worksheetXml } = compileWorksheet(spec, lock, fields);
     expect(worksheetXml).toContain("<text column=");
     expect(worksheetXml).toContain("sum:Sales");
+    // Formatting must mirror the sample workbook's "Sample KPI Chart".
+    expect(worksheetXml).toContain("<customized-label>");
+    expect(worksheetXml).toContain("fontcolor='#1b1b1b'");
+    expect(worksheetXml).toContain("fontsize='18'");
+    expect(worksheetXml).toContain("fontsize='12'");
+    expect(worksheetXml).toContain("<![CDATA[<");
+    expect(worksheetXml).toContain(">Total Sales</run>");
+    expect(worksheetXml).toContain("<format attr='text-align' value='center' />");
+    expect(worksheetXml).toContain("<format attr='mark-labels-show' value='true' />");
+    expect(worksheetXml).toContain("<format attr='mark-labels-cull' value='true' />");
+    // The line-break run must match the sample (leading U+00C6 + newline entity),
+    // otherwise Tableau collapses the whitespace-only run and the value + caption
+    // render on the SAME line.
+    expect(worksheetXml).toContain("<run>\u00C6&#10;</run>");
+  });
+});
+
+describe("eval: bar chart formatting matches the sample", () => {
+  it("adds value labels + measure number format like the sample bar chart", () => {
+    const spec: WorksheetSpec = {
+      name: "Sales by Category",
+      datasourceName: lock.datasourceName,
+      chartType: "bar",
+      columns: [{ name: "Category" }],
+      rows: [{ name: "Sales", aggregation: "sum" }],
+      marks: [],
+      filters: [],
+      calculations: [],
+      parameters: [],
+    };
+    const { worksheetXml } = compileWorksheet(spec, lock, fields);
+    // Data labels shown, like the sample vertical/horizontal bar charts.
+    expect(worksheetXml).toContain("<text column=");
+    expect(worksheetXml).toContain("<format attr='mark-labels-show' value='true' />");
+    expect(worksheetXml).toContain("<format attr='mark-labels-cull' value='true' />");
+    // Measure number format applied at the cell level (Sales carries a currency
+    // default-format in the sample datasource).
+    expect(worksheetXml).toContain("<style-rule element='cell'>");
+    expect(worksheetXml).toContain("attr='text-format'");
+    expect(worksheetXml).toContain("sum:Sales");
+  });
+
+  it("does NOT force labels on a line chart (matches sample)", () => {
+    const spec: WorksheetSpec = {
+      name: "Sales Trend",
+      datasourceName: lock.datasourceName,
+      chartType: "line",
+      columns: [{ name: "Order Date", dateDerivation: "month" }],
+      rows: [{ name: "Sales", aggregation: "sum" }],
+      marks: [],
+      filters: [],
+      calculations: [],
+      parameters: [],
+    };
+    const { worksheetXml } = compileWorksheet(spec, lock, fields);
+    expect(worksheetXml).not.toContain("mark-labels-show");
+  });
+
+  it("honors formatting.showLabels=true on a line chart", () => {
+    const spec: WorksheetSpec = {
+      name: "Sales Trend Labeled",
+      datasourceName: lock.datasourceName,
+      chartType: "line",
+      columns: [{ name: "Order Date", dateDerivation: "month" }],
+      rows: [{ name: "Sales", aggregation: "sum" }],
+      marks: [],
+      filters: [],
+      calculations: [],
+      parameters: [],
+      formatting: { showLabels: true },
+    };
+    const { worksheetXml } = compileWorksheet(spec, lock, fields);
+    expect(worksheetXml).toContain("<format attr='mark-labels-show' value='true' />");
   });
 });

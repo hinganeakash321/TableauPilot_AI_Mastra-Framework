@@ -33,6 +33,12 @@ export interface ChartRecipe {
   dualAxis: boolean;
   /** Whether rows/cols are left empty (KPI). */
   emptyRowsCols: boolean;
+  /**
+   * Whether the sample workbook shows value (mark) labels for this chart family.
+   * When true the compiler adds a measure text label + `mark-labels-show/cull`
+   * and applies the measure's number format, matching the sample charts.
+   */
+  showsValueLabels?: boolean;
   /** Reference template file in templates/sample-1. */
   referenceTemplate: string;
 }
@@ -48,6 +54,7 @@ export const CHART_REGISTRY: Record<ChartType, ChartRecipe> = {
     dualMeasureAxes: false,
     dualAxis: false,
     emptyRowsCols: false,
+    showsValueLabels: true,
     referenceTemplate: "ws_sample_vertical_bar_chart.xml",
   },
   horizontal_bar: {
@@ -60,6 +67,7 @@ export const CHART_REGISTRY: Record<ChartType, ChartRecipe> = {
     dualMeasureAxes: false,
     dualAxis: false,
     emptyRowsCols: false,
+    showsValueLabels: true,
     referenceTemplate: "ws_sample_horizontal_bar_chart.xml",
   },
   stacked_bar: {

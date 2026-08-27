@@ -397,6 +397,8 @@ function assembleWorksheet(opts: {
   encodingsXml: string;
   paneExtraXml?: string;
   panesOverrideXml?: string;
+  /** Table-level `<style>` block (e.g. measure number format). */
+  tableStyleXml?: string;
   rows: string;
   cols: string;
   mapsources?: boolean;
@@ -442,13 +444,15 @@ function assembleWorksheet(opts: {
       `          </pane>\n` +
       `        </panes>`;
 
+  const tableStyle = opts.tableStyleXml ? `${opts.tableStyleXml}\n` : `        <style />\n`;
+
   return (
     `    <worksheet name='${xmlEscape(name)}'>\n` +
     `      <table>\n` +
     `        <view>\n` +
     viewParts +
     `\n        </view>\n` +
-    `        <style />\n` +
+    tableStyle +
     panes +
     `\n        <rows>${rows}</rows>\n` +
     `        <cols>${cols}</cols>\n` +
@@ -480,20 +484,33 @@ function compileKpi(
   );
   deps.add(pill);
   const title = spec.formatting?.title ?? spec.name;
+  const ref = pill.ref(lock.datasourceId);
+  // Formatting mirrors the sample workbook's "Sample KPI Chart": a big bold value
+  // (fontsize 18, #1b1b1b) with a smaller bold caption below (fontsize 12), the
+  // value referenced via CDATA, the cell centered, and mark labels shown + culled.
+  // The line-break run mirrors the sample byte-for-byte: a leading U+00C6 (Æ)
+  // followed by the &#10; newline entity. Tableau collapses a run that contains
+  // ONLY whitespace/newline, so the value and caption would render on one line;
+  // the leading Æ makes the run non-empty so the newline survives (Tableau does
+  // not display the Æ itself). Do NOT "clean" this up - it is required.
   const label =
     `            <customized-label>\n` +
     `              <formatted-text>\n` +
-    `                <run bold='true' fontsize='18'>&lt;${pill.ref(lock.datasourceId)}&gt;</run>\n` +
-    `                <run>&#10;</run>\n` +
-    `                <run bold='true' fontsize='12'>${xmlEscape(title)}</run>\n` +
+    `                <run bold='true' fontcolor='#1b1b1b' fontsize='18'><![CDATA[<${ref}>]]></run>\n` +
+    `                <run>\u00C6&#10;</run>\n` +
+    `                <run bold='true' fontcolor='#1b1b1b' fontsize='12'>${xmlEscape(title)}</run>\n` +
     `              </formatted-text>\n` +
     `            </customized-label>\n` +
     `            <style>\n` +
+    `              <style-rule element='cell'>\n` +
+    `                <format attr='text-align' value='center' />\n` +
+    `              </style-rule>\n` +
     `              <style-rule element='mark'>\n` +
     `                <format attr='mark-labels-show' value='true' />\n` +
+    `                <format attr='mark-labels-cull' value='true' />\n` +
     `              </style-rule>\n` +
     `            </style>\n`;
-  const encodings = `              <text column='${pill.ref(lock.datasourceId)}' />`;
+  const encodings = `              <text column='${ref}' />`;
   const worksheetXml = assembleWorksheet({
     name: spec.name,
     dsId: lock.datasourceId,
@@ -638,6 +655,51 @@ function compileGeneric(
     ? ""
     : buildShelf(spec.columns, spec.chartType, index, dsId, deps);
 
+  // Value labels + number formatting, matching the sample workbook. The sample
+  // shows mark labels on the primary measure for bar-family charts (and any chart
+  // when the user asks). We add a measure text label, the `mark-labels-show/cull`
+  // pane style, and a table-level cell number format for that measure.
+  const measureFieldSpec = [...spec.rows, ...spec.columns].find(
+    (f) => (index.find(f.name)?.role ?? f.role) === "measure",
+  );
+  const measurePill = measureFieldSpec
+    ? resolvePill(toPillInput({ ...measureFieldSpec, role: "measure" }, spec.chartType, index))
+    : undefined;
+  const measureFormat = measureFieldSpec
+    ? measureFieldSpec.format ?? index.find(measureFieldSpec.name)?.defaultFormat
+    : undefined;
+
+  const hasLabelEncoding = spec.marks.some((m) =>
+    m.encodings.some((e) => e.shelf === "label"),
+  );
+  const wantLabels = spec.formatting?.showLabels ?? recipe.showsValueLabels ?? false;
+  const showLabels = (wantLabels || hasLabelEncoding) && !recipe.emptyRowsCols;
+
+  let extraLabelXml = "";
+  if (showLabels && !hasLabelEncoding && measurePill) {
+    deps.add(measurePill);
+    extraLabelXml = `              <text column='${measurePill.ref(dsId)}' />`;
+  }
+  const allEncodingsXml = [encodingsXml, extraLabelXml].filter(Boolean).join("\n");
+
+  const paneStyleXml = showLabels
+    ? `            <style>\n` +
+      `              <style-rule element='mark'>\n` +
+      `                <format attr='mark-labels-show' value='true' />\n` +
+      `                <format attr='mark-labels-cull' value='true' />\n` +
+      `              </style-rule>\n` +
+      `            </style>\n`
+    : undefined;
+
+  const tableStyleXml =
+    showLabels && measurePill && measureFormat
+      ? `        <style>\n` +
+        `          <style-rule element='cell'>\n` +
+        `            <format attr='text-format' field='${measurePill.ref(dsId)}' value='${xmlEscape(measureFormat)}' />\n` +
+        `          </style-rule>\n` +
+        `        </style>`
+      : undefined;
+
   const worksheetXml = assembleWorksheet({
     name: spec.name,
     dsId,
@@ -647,7 +709,9 @@ function compileGeneric(
     sortXml,
     sliceXml,
     markClass: recipe.markClass,
-    encodingsXml,
+    encodingsXml: allEncodingsXml,
+    paneExtraXml: paneStyleXml,
+    tableStyleXml,
     rows,
     cols,
   });

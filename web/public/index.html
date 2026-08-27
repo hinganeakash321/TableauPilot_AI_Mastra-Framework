@@ -461,7 +461,14 @@
     try {
       const j = await (await fetch("/api/workbooks")).json();
       const sel = $("dWorkbook"); sel.innerHTML = "";
+      // The current build lives only in memory (not on disk), so add it first.
+      if (latestOutput) {
+        const o = document.createElement("option");
+        o.value = latestOutput.name; o.textContent = latestOutput.name + " (current build)";
+        sel.appendChild(o);
+      }
       (j.workbooks || []).forEach((w) => {
+        if (latestOutput && w.name === latestOutput.name) return;
         const o = document.createElement("option"); o.value = w.name; o.textContent = w.name; sel.appendChild(o);
       });
       if (latestOutput) sel.value = latestOutput.name;
@@ -469,7 +476,8 @@
   }
   $("deployBtn").addEventListener("click", async () => {
     const payload = {
-      name: $("dWorkbook").value,
+      name: latestOutput ? latestOutput.name : $("dWorkbook").value,
+      sessionId,
       serverUrl: $("dServer").value.trim(),
       siteContentUrl: $("dSite").value.trim(),
       patName: $("dPatName").value.trim(),
@@ -499,8 +507,8 @@
 
   // ---------- Download ----------
   $("downloadBtn").addEventListener("click", () => {
-    const name = latestOutput ? latestOutput.name : "";
-    window.location.href = "/api/download" + (name ? "?name=" + encodeURIComponent(name) : "");
+    // The build lives only in server memory for this session - fetch it by session.
+    window.location.href = "/api/download?sessionId=" + encodeURIComponent(sessionId);
   });
   function setOutput(o) {
     latestOutput = o;
