@@ -143,7 +143,18 @@ export const WorksheetFilterSpecSchema = z.object({
   field: z.string(),
   operator: FilterOperatorSchema.optional(),
   values: z.array(z.union([z.string(), z.number(), z.boolean()])).optional(),
+  /**
+   * For date fields: the discrete part to filter on (e.g. `year`, `quarter`,
+   * `month`). When omitted, a 4-digit value set is inferred as a `year` filter.
+   */
+  dateDerivation: DateDerivationSchema.optional(),
   topN: TopNSchema.optional(),
+  /**
+   * When true, the filter is added to CONTEXT (`context='true'`) so it is applied
+   * before other dimension/Top-N filters (Tableau order of operations). Useful for
+   * "top N within a filtered subset" and for improving performance.
+   */
+  context: z.boolean().optional(),
 });
 export type WorksheetFilterSpec = z.infer<typeof WorksheetFilterSpecSchema>;
 

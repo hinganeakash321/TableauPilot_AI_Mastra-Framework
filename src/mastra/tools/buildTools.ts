@@ -19,6 +19,7 @@ import { validateTwbxStructure } from "../../tableau/validators/index.js";
 import { openTwbx } from "../../tableau/twbx.js";
 import {
   WorksheetSpecSchema,
+  CalculatedFieldSpecSchema,
   DatasourceLockSchema,
   ValidationResultSchema,
 } from "../schemas/index.js";
@@ -59,12 +60,19 @@ export const compileWorkbook = createTool({
   id: "compileWorkbook",
   description:
     "Apply worksheet specs to the source TWBX and write a WORKING TWBX (original " +
-    "is never modified). Enforces the datasource lock. Returns the working path " +
-    "and a before/after worksheet diff.",
+    "is never modified). Enforces the datasource lock. Creates any calculated " +
+    "fields (from `calculations` or from each spec's `calculations`) in the locked " +
+    "datasource so worksheets can reference them by name. Returns the working " +
+    "path, the calculated fields created, and a before/after worksheet diff.",
   inputSchema: z.object({
     sourceTwbxPath: z.string(),
     lock: DatasourceLockSchema,
     specs: z.array(WorksheetSpecSchema).min(1),
+    /**
+     * Calculated fields to create once in the locked datasource (in addition to
+     * any declared on individual specs). Reference them from shelves by `name`.
+     */
+    calculations: z.array(CalculatedFieldSpecSchema).optional(),
     collision: CollisionSchema,
   }),
   outputSchema: toolResult(
@@ -72,6 +80,9 @@ export const compileWorkbook = createTool({
       workingPath: z.string(),
       added: z.array(z.string()),
       modified: z.array(z.string()),
+      calculationsAdded: z.array(
+        z.object({ caption: z.string(), name: z.string() }),
+      ),
       errors: z.array(z.object({ code: z.string(), message: z.string() })),
       beforeWorksheets: z.number(),
       afterWorksheets: z.number(),
@@ -85,12 +96,14 @@ export const compileWorkbook = createTool({
         specs: inputData.specs,
         lock: inputData.lock,
         fields: r.fields,
+        calculations: inputData.calculations,
         collision: inputData.collision,
       });
       return {
         workingPath: res.workingPath,
         added: res.added,
         modified: res.modified,
+        calculationsAdded: res.calculationsAdded,
         errors: res.errors.map((e) => ({ code: e.code, message: e.message })),
         beforeWorksheets: res.beforeWorksheets,
         afterWorksheets: res.afterWorksheets,

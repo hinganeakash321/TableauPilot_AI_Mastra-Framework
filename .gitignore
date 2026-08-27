@@ -45,3 +45,6 @@ artifacts/logs/*
 
 # Sample data extracts (large)
 *.hyper
+
+# Bundled hyperd engine (downloaded via `npm run hyperd:setup`)
+.hyperd/

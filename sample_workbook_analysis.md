@@ -120,8 +120,32 @@ reference from the same function so they are always consistent.
 | KPI | `Automatic` | empty rows/cols, measure on `text` + `customized-label` |
 | Histogram | `Bar` | measure bin dimension on cols, count on rows |
 | Bubble | `Circle` | dimension on color/detail, measure on size |
-| Top N | any | adds nested `<groupfilter>` (`end`/`order`/`level-members`) + `computed-sort` |
+| Top N | any | adds nested `<groupfilter>` (`end`/`order`/`level-members`) — selection + ordering in the filter (no separate `computed-sort`, see 6b) |
 | Symbol/Filled map | `Automatic` | generated Lat/Long on rows/cols, geo dimension on detail |
+
+## 6b. Filter XML patterns (from the sample)
+
+Filters live inside `<view>` (before `<aggregation>`), and every filtered
+dimension is also registered under `<slices>`. The `column`/`level` always use the
+same **column-instance** name as the pill (e.g. `none:Category:nk`, `yr:Order Date:ok`).
+
+| Filter | Structure |
+|--------|-----------|
+| Single categorical member | `<filter class='categorical' column='[ds].[none:Category:nk]'>` → one `<groupfilter function='member' level='[none:Category:nk]' member='&quot;Furniture&quot;' user:ui-domain='database' user:ui-enumeration='inclusive' user:ui-marker='enumerate' />` |
+| **Multiple** categorical members | one `<groupfilter function='union' …>` wrapping one `<groupfilter function='member' …/>` per value. **Sibling `member` nodes without a `union` are invalid and cause open errors.** |
+| Date part (year) | column-instance uses the discrete date part: `[yr:Order Date:ok]`, `member='2026'` (**unquoted**). Month is `[my:Order Date:ok]`/`[mn:…]`, quarter `[qr:…]`, etc. |
+| Measure range | `<filter class='quantitative' column='[ds].[sum:Sales:qk]' included-values='in-range'>` with `<min>`/`<max>`. |
+| Top N | nested `<groupfilter>` (`end` → `order` → `level-members`). The inner `function='order'` groupfilter selects **and** orders the top/bottom N by the measure. |
+
+> **Do not** emit a standalone in-view `<computed-sort>` for Top-N (even though the
+> raw sample contains one and it passes the published TWB XSD). Some Tableau
+> runtimes validate the worksheet `<view>` against a stricter schema and reject it
+> with `no declaration found for element 'computed-sort'`, which makes the whole
+> workbook fail to open. The Top-N filter's `function='order'` groupfilter already
+> carries the ordering, so the element is redundant for selection.
+
+Member quoting rule: **string** members are wrapped in `&quot;…&quot;`; **numeric,
+boolean, and date-part** members are written bare (`2026`, `12`, `true`).
 
 ## 7. Implications for the compiler
 

@@ -28,7 +28,8 @@ function findProjectRoot(): string {
   return process.cwd();
 }
 
-const PROJECT_ROOT = findProjectRoot();
+/** Absolute path to the project root (dir containing package.json). */
+export const PROJECT_ROOT = findProjectRoot();
 
 /** Inbox directory for uploaded/dropped workbooks (override with UPLOADS_PATH). */
 export const UPLOADS_DIR = process.env.UPLOADS_PATH

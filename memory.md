@@ -62,7 +62,33 @@
 - XML writes use targeted string insertion (not full re-serialization) to keep the
   locked datasource + `.hyper` byte-for-byte intact.
 - Chart coverage limited to types with real templates in the sample workbook.
-- Python: NOT introduced. See `docs/python-dependency-decision.md`.
+- Python: NOT introduced. See `docs/python-dependency-decision.md`. Reading extract
+  data uses Tableau's official **Rust-backed Node** bindings (`hyperdb-api-node`), not
+  Python.
+- **Calculated fields (creation):** `src/tableau/compiler/calculatedFields.ts` writes
+  `<column caption=..><calculation class='tableau' formula=..></column>` into the LOCKED
+  datasource (connection/extract untouched). Wired through `applyWorksheets` /
+  `compileWorkbook` (top-level `calculations` + each spec's `calculations`); existing
+  fields with the same name are reused, not duplicated. New calc `FieldInfo`s are merged
+  into the field index (`effectiveFields`) so worksheets + validation resolve references
+  by name. Agent references the calc on shelves by the name it assigned.
+- **Context filters:** `WorksheetFilterSpec.context: true` -> compiler emits
+  `context='true'` on the `<filter>` (categorical/quantitative/topN). Applied before
+  other dimension/Top-N filters (Tableau order of operations).
+- **Reading underlying data:** `src/tableau/data/hyperReader.ts` opens the TWBX's
+  `.hyper` READ-ONLY (temp copy) and exposes `listTables` / `profileColumn` /
+  `runReadOnlyQuery`. Surfaced to the agent as `inspectData`, `profileField` (returns
+  year range + distinct-year count for dates -> answers "how many years of data"),
+  and `queryData` (single READ-ONLY SELECT, LIMIT enforced). `hyperd` is auto-located
+  (HYPERD_PATH env, else Tableau Desktop/Prep app bundle, else tableauhyperapi, else
+  the platform package). Node >= 21 required (native napi addon).
+- **hyperd bootstrap (deploy portability):** `scripts/download-hyperd.mjs`
+  (`npm run hyperd:setup`) downloads the pinned, platform-correct `hyperd` from
+  Tableau's Hyper API **Java** zip (`downloads.tableau.com/.../tableauhyperapi-java-<slug>-release-main.<ver>.<build>.zip`),
+  extracts `lib/hyper/**` into `./.hyperd/hyper/` (via jszip, no unzip CLI). The reader
+  auto-detects `./.hyperd/hyper/hyperd` (2nd priority, after HYPERD_PATH). `Dockerfile`
+  + `.dockerignore` bundle it for clean hosts (no Tableau). `.hyperd/` is gitignored.
+  Verified: bundled 260 MB self-contained hyperd queries the sample (years 2023-2026).
 - Deployment workflow takes PAT at the resume step (used transiently, never persisted
   to workflow state); only an opaque session handle flows between steps.
 - Workflow `suspendPayload` is keyed by step id (e.g. `suspendPayload.generateWorksheets`).

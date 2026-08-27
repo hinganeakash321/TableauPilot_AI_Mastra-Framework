@@ -135,6 +135,44 @@ class DependencyBuilder {
   }
 }
 
+/**
+ * Builds a categorical "keep only these members" filter. A single member is
+ * written flat under `<filter>`; multiple members are wrapped in a
+ * `<groupfilter function='union'>` (the structure Tableau requires - sibling
+ * `member` nodes without a union are invalid and cause open errors).
+ */
+function buildCategoricalFilter(
+  columnRef: string,
+  members: { level: string; member: string }[],
+  context = false,
+): string {
+  const ctx = context ? " context='true'" : "";
+  const memberEl = (m: { level: string; member: string }, indent: string) =>
+    `${indent}<groupfilter function='member' level='${m.level}' member='${m.member}' ` +
+    `user:ui-domain='database' user:ui-enumeration='inclusive' user:ui-marker='enumerate' />`;
+
+  if (members.length === 1) {
+    return (
+      `          <filter class='categorical' column='${columnRef}'${ctx}>\n` +
+      memberEl(members[0]!, "            ") +
+      `\n          </filter>`
+    );
+  }
+  const inner = members
+    .map(
+      (m) =>
+        `              <groupfilter function='member' level='${m.level}' member='${m.member}' />`,
+    )
+    .join("\n");
+  return (
+    `          <filter class='categorical' column='${columnRef}'${ctx}>\n` +
+    `            <groupfilter function='union' user:ui-domain='database' user:ui-enumeration='inclusive' user:ui-marker='enumerate'>\n` +
+    inner +
+    `\n            </groupfilter>\n` +
+    `          </filter>`
+  );
+}
+
 /** Builds a categorical/quantitative or Top-N filter block. */
 function buildFilters(
   filters: WorksheetFilterSpec[],
@@ -148,6 +186,7 @@ function buildFilters(
   const sliceCols: string[] = [];
 
   for (const f of filters) {
+    const ctx = f.context ? " context='true'" : "";
     if (f.topN) {
       const dimInfo = index.find(f.topN.field);
       const dimPill = resolvePill(
@@ -174,17 +213,21 @@ function buildFilters(
       const dir = f.topN.direction === "top" ? "DESC" : "ASC";
       const aggFn = (f.topN.measureAggregation ?? "sum").toUpperCase();
       const measureField = index.find(f.topN.byMeasure)?.name ?? f.topN.byMeasure;
+      // The Top-N filter's inner `function='order'` groupfilter both selects AND
+      // orders the top/bottom N by the measure. We deliberately do NOT emit a
+      // separate `<computed-sort>`: some Tableau runtimes validate the worksheet
+      // `<view>` against a stricter schema than the published XSD and reject an
+      // in-view `computed-sort` ("no declaration found for element 'computed-sort'"),
+      // which makes the whole workbook fail to open. The filter alone keeps the
+      // correct N records; the measure pill still drives the ordering.
       filterParts.push(
-        `          <filter class='categorical' column='${dimPill.ref(dsId)}'>\n` +
+        `          <filter class='categorical' column='${dimPill.ref(dsId)}'${ctx}>\n` +
           `            <groupfilter count='${f.topN.n}' end='${end}' function='end' units='records' user:ui-marker='end' user:ui-top-by-field='true'>\n` +
           `              <groupfilter direction='${dir}' expression='${aggFn}([${xmlEscape(measureField)}])' function='order' user:ui-marker='order'>\n` +
-          `                <groupfilter function='level-members' level='[${dimPill.instanceName}]' user:ui-marker='enumerate' />\n` +
+          `                <groupfilter function='level-members' level='[${dimPill.instanceName}]' user:ui-manual-selection='true' user:ui-manual-selection-all-when-empty='true' user:ui-marker='enumerate' />\n` +
           `              </groupfilter>\n` +
           `            </groupfilter>\n` +
           `          </filter>`,
-      );
-      sortParts.push(
-        `          <computed-sort column='${dimPill.ref(dsId)}' direction='${dir}' using='${measurePill.ref(dsId)}' />`,
       );
       sliceCols.push(`            <column>${dimPill.ref(dsId)}</column>`);
       continue;
@@ -193,17 +236,32 @@ function buildFilters(
     // Value / comparison filter.
     const info = index.find(f.field);
     const isMeasure = info?.role === "measure";
-    const pill = resolvePill(
-      toPillInput(
-        {
-          name: f.field,
-          role: isMeasure ? "measure" : "dimension",
-          dataType: info?.dataType,
-        },
-        chartType,
-        index,
-      ),
-    );
+    const dataType: DataType = info?.dataType ?? "string";
+    const isDate = dataType === "date" || dataType === "datetime";
+
+    // Date filters target a DISCRETE date part (e.g. yr:Order Date:ok), never the
+    // exact date, so the members (years/quarters/months) actually match. Infer a
+    // year filter when every value is a 4-digit number and no derivation is given.
+    let dateDerivation = f.dateDerivation;
+    if (isDate && (!dateDerivation || dateDerivation === "none")) {
+      const allYears =
+        !!f.values &&
+        f.values.length > 0 &&
+        f.values.every((v) => /^\d{4}$/.test(String(v)));
+      if (allYears) dateDerivation = "year";
+    }
+
+    const pill = resolvePill({
+      name: info?.name ?? f.field.replace(/^\[/, "").replace(/\]$/, ""),
+      role: isMeasure ? "measure" : "dimension",
+      dataType,
+      aggregation: isMeasure
+        ? (info?.defaultAggregation ?? "sum")
+        : undefined,
+      dateDerivation: isDate ? dateDerivation : undefined,
+      // Filters use the discrete (blue) date part, not a continuous truncation.
+      continuousDate: false,
+    });
     deps.add(pill);
 
     if (isMeasure && f.values && f.values.length > 0) {
@@ -211,25 +269,25 @@ function buildFilters(
       if (nums.length > 0) {
         const min = Math.min(...nums);
         const max = Math.max(...nums);
-        filterParts.push(
-          `          <filter class='quantitative' column='${pill.ref(dsId)}' included-values='in-range'>\n` +
-            `            <min>${min}</min>\n` +
-            `            <max>${max}</max>\n` +
-            `          </filter>`,
-        );
+            filterParts.push(
+              `          <filter class='quantitative' column='${pill.ref(dsId)}'${ctx} included-values='in-range'>\n` +
+                `            <min>${min}</min>\n` +
+                `            <max>${max}</max>\n` +
+                `          </filter>`,
+            );
       }
     } else if (f.values && f.values.length > 0) {
-      const members = f.values
-        .map(
-          (v) =>
-            `            <groupfilter function='member' level='[${pill.instanceName}]' member='&quot;${xmlEscape(String(v))}&quot;' user:ui-marker='enumerate' />`,
-        )
-        .join("\n");
-      filterParts.push(
-        `          <filter class='categorical' column='${pill.ref(dsId)}'>\n` +
-          members +
-          `\n          </filter>`,
-      );
+      // Quote string members ("Furniture"); leave numbers/dates/booleans bare
+      // (year 2026, month 12), matching how Tableau writes categorical members.
+      const quote = dataType === "string";
+      const memberLevel = `[${pill.instanceName}]`;
+      const memberEls = f.values.map((v) => {
+        const val = quote
+          ? `&quot;${xmlEscape(String(v))}&quot;`
+          : xmlEscape(String(v));
+        return { level: memberLevel, member: val };
+      });
+      filterParts.push(buildCategoricalFilter(pill.ref(dsId), memberEls, !!f.context));
       sliceCols.push(`            <column>${pill.ref(dsId)}</column>`);
     }
   }

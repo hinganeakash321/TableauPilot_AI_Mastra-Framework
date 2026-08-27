@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TableauPilot AI</title>
+<style>
+  :root {
+    --bg: #0b0d12; --panel: #151922; --panel-2: #10141c; --border: #232a36;
+    --text: #e8eaf0; --muted: #9aa3b2; --accent: #6ea8fe; --accent-2: #3b82f6;
+    --ok: #55d187; --err: #ff8080; --user: #1e2a44; --warn: #f0b34a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 12px 18px;
+    border-bottom: 1px solid var(--border); background: var(--panel);
+  }
+  header .dot { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); font-size: 16px; }
+  header h1 { font-size: 15px; margin: 0; letter-spacing: .2px; }
+  header .badge { font-size: 11px; color: var(--muted); background: var(--panel-2);
+    border: 1px solid var(--border); padding: 3px 8px; border-radius: 999px; }
+  header .spacer { flex: 1; }
+
+  /* Stepper */
+  .stepper { display: flex; align-items: center; gap: 6px; }
+  .step { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+    font-size: 13px; color: var(--muted); cursor: pointer; border: 1px solid transparent; user-select: none; }
+  .step .num { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 12px; background: var(--panel-2); border: 1px solid var(--border); }
+  .step.active { color: var(--text); background: var(--panel-2); border-color: var(--border); }
+  .step.active .num { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border: none; color: #fff; }
+  .step.done .num { background: #14361f; border-color: #1f4030; color: var(--ok); }
+  .step.disabled { opacity: .5; cursor: not-allowed; }
+  .step .sep { color: #3a4353; }
+  .arrow { color: #3a4353; }
+
+  .btn { font: inherit; font-size: 13px; border-radius: 9px; padding: 8px 14px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--text); transition: .15s; }
+  .btn:hover { border-color: #33405a; }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border: none; color: #fff; font-weight: 600; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  main { flex: 1; overflow-y: auto; padding: 22px 18px 24px; }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 6px; font-size: 16px; }
+  .card p.sub { margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+  /* Upload */
+  #drop { border: 2px dashed #33405a; border-radius: 12px; padding: 34px 20px; text-align: center;
+    cursor: pointer; background: var(--panel-2); transition: .15s; }
+  #drop.hot { border-color: var(--accent); background: #131a27; }
+  #drop .big { font-size: 15px; color: #cdd6e6; }
+  #drop .hint { color: #7c8598; font-size: 12px; margin-top: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; padding: 7px 12px;
+    background: #0f1a12; border: 1px solid #1f4030; border-radius: 999px; font-size: 13px; color: #cfe9d8; }
+  .chip .x { cursor: pointer; color: #8fb8a1; }
+
+  /* Datasource panel */
+  .ds { border: 1px solid var(--border); border-radius: 12px; background: var(--panel-2); padding: 16px; margin-top: 8px; }
+  .ds .lock { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ok);
+    background: #0f1a12; border: 1px solid #1f4030; padding: 3px 10px; border-radius: 999px; }
+  .ds h3 { margin: 8px 0 4px; font-size: 15px; }
+  .ds .meta { color: var(--muted); font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-top: 14px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; text-align: center; }
+  .stat .n { font-size: 20px; font-weight: 700; }
+  .stat .l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+  .dslist { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .dsopt { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 10px; background: var(--panel); cursor: pointer; }
+  .dsopt.sel { border-color: var(--accent); background: #131a27; }
+
+  .rowbtns { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; gap: 10px; }
+
+  /* Chat */
+  .lockbar { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; flex-wrap: wrap; }
+  .lockbar b { color: var(--text); }
+  #chat { min-height: 40px; }
+  .msg { display: flex; gap: 10px; margin: 0 0 16px; }
+  .msg .avatar { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; font-size: 13px; flex-shrink: 0; }
+  .msg.user .avatar { background: var(--user); }
+  .msg.assistant .avatar { background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+  .msg .body { background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; max-width: 100%; }
+  .msg.user .body { background: var(--user); border-color: #2b3a5c; }
+  .msg .body a { color: var(--accent); }
+  .msg .body code { background: var(--panel-2); padding: 1px 5px; border-radius: 5px; font-size: 12px; }
+  .msg .built { margin-top: 10px; display: flex; align-items: center; gap: 10px;
+    background: #0f1a12; border: 1px solid #1f4030; border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+  .typing { color: var(--muted); font-size: 13px; }
+  .dots::after { content: ""; animation: dots 1.2s steps(4,end) infinite; }
+  @keyframes dots { 0%{content:""} 25%{content:"."} 50%{content:".."} 75%{content:"..."} 100%{content:""} }
+
+  .composer { display: flex; gap: 10px; align-items: flex-end; margin-top: 8px; }
+  .composer textarea { flex: 1; resize: none; font: inherit; font-size: 14px; color: var(--text);
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+    min-height: 46px; max-height: 160px; outline: none; }
+  .composer textarea:focus { border-color: #33405a; }
+
+  /* Forms */
+  .form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+  .form .full { grid-column: 1 / -1; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  input[type=text], input[type=password], select {
+    width: 100%; font: inherit; font-size: 14px; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; outline: none; }
+  input:focus, select:focus { border-color: #33405a; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
+  .result { margin-top: 16px; border-radius: 12px; padding: 14px 16px; font-size: 14px; display: none; }
+  .result.ok { display: block; background: #0f1a12; border: 1px solid #1f4030; color: #cfe9d8; }
+  .result.err { display: block; background: #1e1112; border: 1px solid #4a2226; color: #ffb3b3; }
+
+  .status { text-align: center; font-size: 12px; color: var(--muted); margin-top: 10px; min-height: 16px; }
+  .status.err { color: var(--err); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="dot">📊</div>
+    <h1>TableauPilot AI</h1>
+    <span class="badge" id="modelBadge">model…</span>
+    <div class="stepper" style="margin-left:16px">
+      <div class="step" data-step="1"><span class="num">1</span> Upload &amp; datasource</div>
+      <span class="arrow">→</span>
+      <div class="step" data-step="2"><span class="num">2</span> Build visualization</div>
+      <span class="arrow">→</span>
+      <div class="step" data-step="3"><span class="num">3</span> Deploy</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn" id="newBtn" title="Start a brand-new chat (clears the current workbook and history)">＋ New chat</button>
+    <button class="btn primary" id="downloadBtn" disabled>⬇ Download</button>
+  </header>
+
+  <main>
+    <div class="wrap">
+
+      <!-- ================= PAGE 1: UPLOAD & CHECK DATASOURCE ================= -->
+      <section class="page" id="page1">
+        <div class="card">
+          <h2>Step 1 — Upload workbook &amp; check datasource</h2>
+          <p class="sub">Upload the Tableau <code>.twbx</code> you want to build on. I’ll read its
+             datasource and fields locally (nothing is sent to the LLM) and lock the datasource so every
+             chart uses the same source of truth.</p>
+          <div id="drop">
+            <div class="big">Drag &amp; drop your <strong>.twbx</strong> here, or click to choose</div>
+            <div class="hint">.twbx / .twb · up to 200&nbsp;MB</div>
+            <input id="file" type="file" accept=".twbx,.twb" hidden />
+          </div>
+          <div id="chipRow"></div>
+          <div class="status" id="status1"></div>
+        </div>
+
+        <div class="card hidden" id="dsCard">
+          <h2>Datasource</h2>
+          <div id="dsPanel"></div>
+          <div class="rowbtns">
+            <span class="status" id="lockStatus"></span>
+            <button class="btn primary" id="toBuild" disabled>Continue to Build →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= PAGE 2: BUILD VISUALIZATION ================= -->
+      <section class="page" id="page2">
+        <div class="lockbar" id="lockbar">No workbook selected. Go back to Step 1.</div>
+        <div class="card">
+          <h2>Step 2 — Build visualization</h2>
+          <p class="sub">Describe the charts you want. I’ll plan them, ask you to confirm, then compile,
+             validate, and package a downloadable <code>.twbx</code>. Try:
+             <code>Create a monthly sales trend</code> or <code>Top 10 customers by sales</code>.</p>
+          <div id="chat"></div>
+          <div class="composer">
+            <textarea id="input" placeholder="e.g. “Create a monthly sales trend line chart, then top 10 customers by sales.”"></textarea>
+            <button class="btn primary" id="sendBtn">Send</button>
+          </div>
+          <div class="status" id="status2"></div>
+        </div>
+        <div class="rowbtns">
+          <button class="btn" id="backTo1">← Back</button>
+          <button class="btn primary" id="toDeploy" disabled>Continue to Deploy →</button>
+        </div>
+      </section>
+
+      <!-- ================= PAGE 3: DEPLOY ================= -->
+      <section class="page" id="page3">
+        <div class="card">
+          <h2>Step 3 — Deploy to Tableau Cloud</h2>
+          <p class="sub">Publish the built workbook to Tableau Cloud. Your Personal Access Token is used
+             only to sign in for this request — it is never stored, logged, or returned.</p>
+          <div class="form">
+            <div>
+              <label>Server URL</label>
+              <input type="text" id="dServer" placeholder="https://10ax.online.tableau.com" />
+            </div>
+            <div>
+              <label>Site content URL</label>
+              <input type="text" id="dSite" placeholder="your-site (blank for default)" />
+            </div>
+            <div>
+              <label>PAT name</label>
+              <input type="text" id="dPatName" placeholder="my-token" autocomplete="off" />
+            </div>
+            <div>
+              <label>PAT secret</label>
+              <input type="password" id="dPatSecret" placeholder="••••••••" autocomplete="off" />
+            </div>
+            <div>
+              <label>Project</label>
+              <input type="text" id="dProject" placeholder="Default (or Parent / Child)" />
+            </div>
+            <div>
+              <label>Workbook to deploy</label>
+              <select id="dWorkbook"></select>
+            </div>
+            <div class="full">
+              <label>Published name</label>
+              <input type="text" id="dName" placeholder="Defaults to the file name" />
+            </div>
+            <div class="full check">
+              <input type="checkbox" id="dOverwrite" />
+              <label for="dOverwrite" style="margin:0">Overwrite if a workbook with the same name exists</label>
+            </div>
+          </div>
+          <div class="rowbtns">
+            <button class="btn" id="backTo2">← Back</button>
+            <button class="btn primary" id="deployBtn">🚀 Deploy</button>
+          </div>
+          <div class="result" id="deployResult"></div>
+          <div class="status" id="status3"></div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- State ----------
+  // Opening the app ALWAYS starts a brand-new chat: we do not resume the previous
+  // session or workbook. The prior session's server-side memory is cleared on load
+  // so nothing (history, locked datasource, built output) carries over.
+  const genSession = () => "web-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const prevSession = localStorage.getItem("tp_session");
+  let sessionId = genSession();
+  localStorage.setItem("tp_session", sessionId);
+  localStorage.removeItem("tp_workbook");
+  let currentWorkbook = null;
+  let inspected = false;      // datasource checked on page 1
+  let lockName = null;        // locked datasource display name
+  let latestOutput = null;    // most recent built workbook
+  let busy = false;
+  let step = 1;
+
+  init();
+  async function init() {
+    try { const h = await (await fetch("/api/health")).json(); $("modelBadge").textContent = h.model || "model"; }
+    catch { $("modelBadge").textContent = "offline"; }
+    // Fresh start: clear the previous session's memory (best-effort).
+    if (prevSession && prevSession !== sessionId) {
+      try {
+        await fetch("/api/reset", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: prevSession }),
+        });
+      } catch {}
+    }
+    bindStepper();
+    goto(1);
+    setStatus("status1", "Upload a .twbx to begin.");
+  }
+
+  // ---------- Stepper / navigation ----------
+  function bindStepper() {
+    document.querySelectorAll(".step").forEach((el) => {
+      el.addEventListener("click", () => {
+        const s = Number(el.dataset.step);
+        if (el.classList.contains("disabled")) return;
+        goto(s);
+      });
+    });
+  }
+  function goto(s) {
+    step = s;
+    document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
+    $("page" + s).classList.add("active");
+    document.querySelectorAll(".step").forEach((el) => {
+      const n = Number(el.dataset.step);
+      el.classList.toggle("active", n === s);
+      const done = (n === 1 && inspected) || (n === 2 && !!latestOutput);
+      el.classList.toggle("done", done && n !== s);
+      // Gate steps 2 and 3.
+      const disabled = (n === 2 && !inspected) || (n === 3 && !latestOutput);
+      el.classList.toggle("disabled", disabled);
+    });
+    if (s === 2) refreshLockbar();
+    if (s === 3) populateWorkbooks();
+    document.querySelector("main").scrollTop = 0;
+  }
+
+  // ---------- Page 1: upload + inspect ----------
+  const drop = $("drop"), fileInput = $("file"), chipRow = $("chipRow");
+  drop.addEventListener("click", () => fileInput.click());
+  ["dragenter","dragover"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add("hot"); }));
+  ["dragleave","drop"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove("hot"); }));
+  drop.addEventListener("drop", ev => { const f = ev.dataTransfer.files[0]; if (f) uploadFile(f); });
+  fileInput.addEventListener("change", () => { if (fileInput.files[0]) uploadFile(fileInput.files[0]); });
+
+  async function uploadFile(file) {
+    if (!/\.twbx?$/i.test(file.name)) { setStatus("status1", "Please choose a .twbx or .twb file.", true); return; }
+    setStatus("status1", "Uploading " + file.name + " …");
+    const fd = new FormData(); fd.append("file", file);
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const j = await res.json();
+      if (!res.ok || !j.ok) throw new Error(j.error || "Upload failed");
+      currentWorkbook = j.name; localStorage.setItem("tp_workbook", j.name);
+      showChip(j.name);
+      setStatus("status1", "Uploaded " + j.name + " (" + Math.round(j.sizeBytes/1024) + " KB). Reading datasource…");
+      await inspect(j.name);
+    } catch (e) { setStatus("status1", e.message, true); }
+  }
+
+  function showChip(name) {
+    chipRow.innerHTML = "";
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.innerHTML = "📄 <b>" + escapeHtml(name) + "</b> <span class='x' title='Remove'>✕</span>";
+    chip.querySelector(".x").onclick = () => {
+      currentWorkbook = null; localStorage.removeItem("tp_workbook"); chipRow.innerHTML = "";
+      inspected = false; lockName = null; $("dsCard").classList.add("hidden"); goto(1);
+    };
+    chipRow.appendChild(chip);
+  }
+
+  async function inspect(name) {
+    try {
+      const res = await fetch("/api/inspect?name=" + encodeURIComponent(name));
+      const j = await res.json();
+      if (!res.ok || !j.ok) throw new Error(j.error || "Inspection failed");
+      renderDatasource(j);
+      inspected = true;
+      setStatus("status1", "");
+      goto(1); // refresh gating (enables step 2)
+    } catch (e) {
+      inspected = false; $("dsCard").classList.add("hidden");
+      setStatus("status1", e.message, true);
+    }
+  }
+
+  function renderDatasource(j) {
+    $("dsCard").classList.remove("hidden");
+    const c = j.counts;
+    let dsHtml = "";
+    if (j.datasources.length === 1) {
+      const d = j.datasources[0];
+      lockName = d.name;
+      dsHtml =
+        "<div class='ds'>" +
+        "<span class='lock'>🔒 Datasource locked</span>" +
+        "<h3>" + escapeHtml(d.name) + "</h3>" +
+        "<div class='meta'>" + escapeHtml(d.connectionType) + " · " + escapeHtml(d.connectionMode) +
+        (d.hasExtract ? " · extract (.hyper)" : "") +
+        (d.connections[0] && d.connections[0].connectionClass ? " · " + escapeHtml(d.connections[0].connectionClass) : "") +
+        "</div></div>";
+      $("toBuild").disabled = false;
+      setStatus("lockStatus", "Datasource “" + d.name + "” is locked and ready.");
+    } else {
+      // Multiple datasources: user picks which to use.
+      dsHtml = "<p class='sub'>This workbook has multiple datasources. Choose the one to lock:</p><div class='dslist'>";
+      j.datasources.forEach((d, i) => {
+        dsHtml += "<div class='dsopt' data-i='" + i + "' data-name='" + escapeAttr(d.name) + "'>" +
+          "<b>" + escapeHtml(d.name) + "</b> <span class='meta'>" + escapeHtml(d.connectionType) +
+          (d.hasExtract ? " · extract" : "") + "</span></div>";
+      });
+      dsHtml += "</div>";
+      $("toBuild").disabled = true;
+      setStatus("lockStatus", "Select a datasource to continue.");
+    }
+    $("dsPanel").innerHTML = dsHtml +
+      "<div class='grid'>" +
+      stat(c.datasources, "Datasources") + stat(c.fields, "Fields") +
+      stat(c.dimensions, "Dimensions") + stat(c.measures, "Measures") +
+      stat(c.calculatedFields, "Calcs") + stat(c.worksheets, "Worksheets") +
+      "</div>";
+    // Wire datasource selection (multi-ds case)
+    $("dsPanel").querySelectorAll(".dsopt").forEach((el) => {
+      el.addEventListener("click", () => {
+        $("dsPanel").querySelectorAll(".dsopt").forEach(o => o.classList.remove("sel"));
+        el.classList.add("sel");
+        lockName = el.dataset.name;
+        $("toBuild").disabled = false;
+        setStatus("lockStatus", "Datasource “" + lockName + "” selected.");
+      });
+    });
+  }
+  function stat(n, l) { return "<div class='stat'><div class='n'>" + n + "</div><div class='l'>" + l + "</div></div>"; }
+
+  $("toBuild").addEventListener("click", () => goto(2));
+
+  // ---------- Page 2: chat / build ----------
+  const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn");
+  function refreshLockbar() {
+    if (!currentWorkbook) { $("lockbar").textContent = "No workbook selected. Go back to Step 1."; return; }
+    $("lockbar").innerHTML = "📄 <b>" + escapeHtml(currentWorkbook) + "</b>" +
+      (lockName ? " · 🔒 <b>" + escapeHtml(lockName) + "</b>" : "") +
+      (latestOutput ? " · ✅ built <b>" + escapeHtml(latestOutput.name) + "</b>" : "");
+  }
+  sendBtn.addEventListener("click", send);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+  input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 160) + "px"; });
+
+  async function send() {
+    const text = input.value.trim();
+    if (!text || busy) return;
+    if (!currentWorkbook) { setStatus("status2", "Upload a workbook in Step 1 first.", true); return; }
+    addMessage("user", text);
+    input.value = ""; input.style.height = "auto";
+    setBusy(true);
+    const typing = addTyping();
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: contextualize(text), sessionId }),
+      });
+      const j = await res.json();
+      typing.remove();
+      if (!res.ok || !j.ok) throw new Error(j.error || "Request failed");
+      addMessage("assistant", j.text || "(no response)", j.output);
+      if (j.output) setOutput(j.output);
+      refreshLockbar();
+    } catch (e) {
+      typing.remove(); addMessage("assistant", "⚠️ " + e.message);
+    } finally { setBusy(false); }
+  }
+  // Give the agent the workbook filename so it targets the right file.
+  function contextualize(text) {
+    if (!currentWorkbook) return text;
+    return text + "\n\n(Workbook: " + currentWorkbook + (lockName ? "; locked datasource: " + lockName : "") + ")";
+  }
+
+  $("backTo1").addEventListener("click", () => goto(1));
+  $("toDeploy").addEventListener("click", () => goto(3));
+
+  // ---------- Page 3: deploy ----------
+  $("backTo2").addEventListener("click", () => goto(2));
+  async function populateWorkbooks() {
+    try {
+      const j = await (await fetch("/api/workbooks")).json();
+      const sel = $("dWorkbook"); sel.innerHTML = "";
+      (j.workbooks || []).forEach((w) => {
+        const o = document.createElement("option"); o.value = w.name; o.textContent = w.name; sel.appendChild(o);
+      });
+      if (latestOutput) sel.value = latestOutput.name;
+    } catch {}
+  }
+  $("deployBtn").addEventListener("click", async () => {
+    const payload = {
+      name: $("dWorkbook").value,
+      serverUrl: $("dServer").value.trim(),
+      siteContentUrl: $("dSite").value.trim(),
+      patName: $("dPatName").value.trim(),
+      patSecret: $("dPatSecret").value,
+      projectName: $("dProject").value.trim(),
+      workbookName: $("dName").value.trim(),
+      overwrite: $("dOverwrite").checked,
+    };
+    const result = $("deployResult"); result.className = "result"; result.style.display = "none";
+    setStatus("status3", "Publishing to Tableau Cloud…");
+    $("deployBtn").disabled = true;
+    try {
+      const res = await fetch("/api/deploy", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      });
+      const j = await res.json();
+      setStatus("status3", "");
+      if (!res.ok || !j.ok) throw new Error(j.error || "Deployment failed");
+      result.className = "result ok";
+      result.innerHTML = "✅ Published <b>" + escapeHtml(j.workbook.name) + "</b> to <b>" +
+        escapeHtml(j.workbook.project) + "</b>" + (j.workbook.overwritten ? " (overwritten)" : "") +
+        (j.workbook.url ? "<br><a href='" + escapeAttr(j.workbook.url) + "' target='_blank' rel='noopener'>Open in Tableau Cloud →</a>" : "");
+    } catch (e) {
+      result.className = "result err"; result.textContent = "⚠️ " + e.message;
+    } finally { $("deployBtn").disabled = false; $("dPatSecret").value = ""; }
+  });
+
+  // ---------- Download ----------
+  $("downloadBtn").addEventListener("click", () => {
+    const name = latestOutput ? latestOutput.name : "";
+    window.location.href = "/api/download" + (name ? "?name=" + encodeURIComponent(name) : "");
+  });
+  function setOutput(o) {
+    latestOutput = o;
+    $("downloadBtn").disabled = false;
+    $("downloadBtn").textContent = "⬇ Download " + o.name;
+    $("toDeploy").disabled = false;
+    goto(step); // refresh step gating (enables Deploy)
+  }
+
+  // ---------- New chat (full reset) ----------
+  // Wipes ALL client state + the server-side memory for the old session, so nothing
+  // from the previous chat (workbook, locked datasource, history, built output)
+  // carries over. Forces the user back to Step 1 to upload a fresh .twbx.
+  $("newBtn").addEventListener("click", async () => {
+    if (busy) return;
+    if (currentWorkbook || chat.children.length) {
+      if (!confirm("Start a new chat? This clears the current workbook, chat history, and build so far.")) return;
+    }
+    const oldSession = sessionId;
+
+    // New session id.
+    sessionId = "web-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem("tp_session", sessionId);
+
+    // Clear stored + in-memory workbook context.
+    localStorage.removeItem("tp_workbook");
+    currentWorkbook = null; inspected = false; lockName = null; latestOutput = null;
+
+    // Reset the UI.
+    chat.innerHTML = "";
+    chipRow.innerHTML = "";
+    $("dsPanel").innerHTML = "";
+    $("dsCard").classList.add("hidden");
+    $("toBuild").disabled = true;
+    $("toDeploy").disabled = true;
+    $("downloadBtn").disabled = true; $("downloadBtn").textContent = "⬇ Download";
+    input.value = ""; input.style.height = "auto";
+    setStatus("status1", ""); setStatus("status2", ""); setStatus("lockStatus", "");
+    refreshLockbar();
+    goto(1);
+
+    // Best-effort: clear the previous session's server-side memory.
+    try {
+      await fetch("/api/reset", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: oldSession }),
+      });
+    } catch {}
+    setStatus("status1", "New chat started — upload a .twbx to begin.");
+  });
+
+  // ---------- UI helpers ----------
+  function setBusy(b) {
+    busy = b; sendBtn.disabled = b; input.disabled = b;
+    setStatus("status2", b ? "TableauPilot is working… (inspect → plan → build → validate → package)" : "");
+    if (!b) input.focus();
+  }
+  function addMessage(role, text, output) {
+    const el = document.createElement("div");
+    el.className = "msg " + role;
+    el.innerHTML = "<div class='avatar'>" + (role === "user" ? "🧑" : "🤖") + "</div><div class='body'>" + renderText(text) + "</div>";
+    if (output) {
+      const b = document.createElement("div");
+      b.className = "built";
+      b.innerHTML = "✅ Built <code>" + escapeHtml(output.name) + "</code> (" + Math.round(output.sizeBytes/1024) + " KB) — download above, or continue to Deploy.";
+      el.querySelector(".body").appendChild(b);
+    }
+    chat.appendChild(el); scrollChat(); return el;
+  }
+  function addTyping() {
+    const el = document.createElement("div");
+    el.className = "msg assistant";
+    el.innerHTML = "<div class='avatar'>🤖</div><div class='body typing'><span class='dots'>Thinking</span></div>";
+    chat.appendChild(el); scrollChat(); return el;
+  }
+  function scrollChat() { const m = document.querySelector("main"); m.scrollTop = m.scrollHeight; }
+  function setStatus(id, msg, isErr) { const el = $(id); if (!el) return; el.textContent = msg || ""; el.className = "status" + (isErr ? " err" : ""); }
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
+  function escapeAttr(s) { return escapeHtml(s); }
+  function renderText(s) {
+    let h = escapeHtml(s);
+    h = h.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+    h = h.replace(/`([^`]+)`/g, "<code>$1</code>");
+    h = h.replace(/(https?:\/\/[^\s<]+)/g, "<a href='$1' target='_blank' rel='noopener'>$1</a>");
+    return h;
+  }
+</script>
+</body>
+</html>

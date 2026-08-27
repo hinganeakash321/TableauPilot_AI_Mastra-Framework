@@ -126,6 +126,7 @@ errors, and safe logging:
 - *Datasource:* `validateDatasource`, `lockDatasource`, `validateDatasourceLock`, `applyDatasourceFilter`, `validateExtract`
 - *Worksheet:* `validateField`, `createWorksheet`, `modifyWorksheet` *(approval)*, `createCalculatedField`, `createParameter`, `addWorksheetFilter`, `validateWorksheet`
 - *Build:* `compileWorksheet`, `compileWorkbook`, `validateTwb`, `packageTwbx` *(approval)*, `validateTwbx`
+- *Data (read-only extract):* `inspectData`, `profileField`, `queryData`
 - *Deployment:* `connectTableauCloud`, `listProjects`, `resolveProject`, `validatePublish`, `publishWorkbook` *(approval)*, `verifyWorkbook`
 
 **Workflows** (`src/mastra/workflows/*`) — deterministic multi-step sequences with
@@ -222,15 +223,100 @@ and consumed by the model layer (`src/mastra/models.ts`).
 | `TABLEAU_VERSION` | Target Tableau version (e.g. `2026.1`) |
 | `WORKSPACE_PATH` | Root for `original/working/output` artifacts |
 | `LOG_LEVEL` | `DEBUG` \| `INFO` \| `WARN` \| `ERROR` |
+| `HYPERD_PATH` | Optional override for the `hyperd` engine used to read extract data (auto-detected otherwise) |
 | `TABLEAU_CLOUD_URL` / `TABLEAU_SITE_CONTENT_URL` / `TABLEAU_PAT_NAME` / `TABLEAU_PAT_SECRET` | Optional local-only deploy defaults; normally entered at deploy time and never stored |
 
 The Anthropic gateway path supports a **dynamic key helper** (the token is captured
 per request, refreshed on 401, and never logged) and a **corporate CA** injected via
 `undici`.
 
+## Reading the underlying data (extract `.hyper`)
+
+The agent can read the workbook's **actual data** — not just metadata — to answer
+questions like *"how many years of data are present?"*, value ranges, distinct counts,
+row counts, and small previews (tools `inspectData`, `profileField`, `queryData`). This
+is **read-only**; the workbook is never modified.
+
+A `.twbx` contains the `.hyper` **data**, but querying it needs the Hyper query
+**engine** (`hyperd`) — a native binary that is *not* shipped inside the TWBX or the
+npm package. It uses Tableau's official Rust-backed Node bindings (`hyperdb-api-node`),
+so **no Python** is involved. `hyperd` is located in this order:
+
+1. `HYPERD_PATH` env var, if set;
+2. a bundled copy at `./.hyperd/hyper/hyperd` (from `npm run hyperd:setup`);
+3. an installed **Tableau Desktop / Prep** app (auto-detected on your dev machine);
+4. a `tableauhyperapi` Python install, if present.
+
+> Requires **Node.js ≥ 21** for this feature (the native addon). Everything else —
+> building worksheets, calculated fields, filters, packaging, deploy — is pure
+> TypeScript and runs on Node ≥ 20.9 without `hyperd`.
+
+### Deploying elsewhere (servers / containers with no Tableau)
+
+On a clean host, download the pinned `hyperd` once into the project:
+
+```bash
+npm run hyperd:setup        # downloads ./.hyperd/hyper/hyperd for your platform
+# pick a specific release if the default pin is yanked:
+# node scripts/download-hyperd.mjs --version 0.0.24457 --build-id rc36858b6
+```
+
+Or build the provided image, which bundles `hyperd` automatically:
+
+```bash
+docker build -t tableaupilot .
+docker run -p 5173:5173 --env-file .env tableaupilot
+```
+
+Supported `hyperd` platforms: macOS arm64/x64, Linux x64, Windows x64. If the feature
+can't find `hyperd`, the data tools return a clear error while all other capabilities
+keep working.
+
+## Running the web UI (Node.js)
+
+A lightweight Node.js (Express) chat UI is the primary end-user surface — no Mastra
+Studio required. It runs the agent in-process and adds first-class **upload** and
+**download** buttons.
+
+```bash
+npm run ui       # starts the web UI (tsx web/server.ts)
+```
+
+Then open **http://localhost:5173** (override with `WEB_PORT`). The UI is a 3-step wizard:
+
+1. **Upload & check datasource** — Upload your `.twbx` (drag-and-drop or click). The binary
+   is saved to the `uploads/` inbox — never pasted into chat, never sent to the LLM. The
+   workbook is inspected locally (deterministically, no LLM) and its datasource is locked;
+   the panel shows field/dimension/measure/worksheet counts. If there are multiple
+   datasources you pick which one to lock.
+2. **Build visualization** — Chat to describe the charts you want (e.g. *"Create a monthly
+   sales trend, then top 10 customers by sales"*). The agent plans, and — after you confirm —
+   compiles, validates, and packages the workbook. Approval-gated steps auto-resume so the
+   build completes in one turn. **Download** the rebuilt `.twbx` from the header button.
+3. **Deploy** — Publish the built workbook to Tableau Cloud. Enter the server URL, site,
+   Personal Access Token, and project. The PAT is used only to sign in for that request —
+   never stored, logged, or returned. On success you get the published workbook URL.
+
+Conversation memory is keyed to a per-browser session id, so the locked datasource and
+workbook context persist across turns. The model is configured via `LLM_MODEL` in `.env`
+(default **`claude-opus-4-8`** through the Anthropic gateway).
+
+Web UI endpoints (served by `web/server.ts`):
+
+| Route | Purpose |
+| --- | --- |
+| `GET /` | 3-step wizard UI (upload/datasource · build · deploy) |
+| `POST /api/upload` | Multipart upload (`file` field) → saves to `uploads/` |
+| `GET /api/inspect?name=<file>` | Deterministic inspection + datasource lock (Page 1) |
+| `POST /api/chat` | `{ message, sessionId }` → runs the agent, returns text + built file |
+| `GET /api/workbooks` | JSON list of available `.twbx`/`.twb` files |
+| `GET /api/output` | Most recently built workbook (for the Download button) |
+| `GET /api/download?name=<file>` | Streams a workbook as an attachment |
+| `POST /api/deploy` | Publishes a built workbook to Tableau Cloud (Page 3) |
+
 ## Running Mastra Studio
 
-Mastra Studio is the primary development and testing surface.
+Mastra Studio remains available as an alternative development and testing surface.
 
 ```bash
 npm run dev      # (alias: npm run studio) starts Mastra dev + Studio

@@ -7,17 +7,26 @@
  * never touched (spec sections 35, 36, 39). The lock is validated first.
  */
 
-import type { WorksheetSpec } from "../../mastra/schemas/worksheet.js";
+import type {
+  CalculatedFieldSpec,
+  WorksheetSpec,
+} from "../../mastra/schemas/worksheet.js";
 import type { FieldInfo } from "../../mastra/schemas/workbook.js";
 import type { DatasourceLock } from "../../mastra/schemas/datasource.js";
 import type { StructuredError } from "../../mastra/schemas/common.js";
 import { compileWorksheet } from "./worksheetCompiler.js";
+import { addCalculatedFields } from "./calculatedFields.js";
 import { ensureSection, insertBeforeLast } from "../xml.js";
 
 /** Options controlling collision behavior for a single apply. */
 export interface ApplyOptions {
   /** When a worksheet name already exists: replace it or add a versioned copy. */
   onCollision: "modify_existing" | "create_new_version" | "error";
+  /**
+   * Calculated fields to create in the locked datasource before compiling the
+   * worksheets (in addition to any declared on individual worksheet specs).
+   */
+  calculations?: CalculatedFieldSpec[];
 }
 
 /** Result of applying worksheets to a workbook. */
@@ -25,6 +34,10 @@ export interface ApplyResult {
   twbXml: string;
   added: string[];
   modified: string[];
+  /** Calculated fields created in the datasource (caption -> synthetic name). */
+  calculationsAdded: { caption: string; name: string }[];
+  /** Original fields plus any newly-created calc fields (for validation). */
+  effectiveFields: FieldInfo[];
   errors: StructuredError[];
 }
 
@@ -116,13 +129,47 @@ export function applyWorksheets(
   const errors: StructuredError[] = [];
   const added: string[] = [];
   const modified: string[] = [];
+  const calculationsAdded: { caption: string; name: string }[] = [];
 
   const lockError = validateLockAgainstWorkbook(twbXml, lock);
   if (lockError) {
-    return { twbXml, added, modified, errors: [lockError] };
+    return {
+      twbXml,
+      added,
+      modified,
+      calculationsAdded,
+      effectiveFields: fields,
+      errors: [lockError],
+    };
   }
 
   let out = ensureSections(twbXml);
+
+  // Create calculated fields (from options + per-worksheet specs) in the locked
+  // datasource FIRST, then compile worksheets against the augmented field set so
+  // references to the new fields resolve to their synthetic column names.
+  let effectiveFields = fields;
+  const allCalcs: CalculatedFieldSpec[] = [
+    ...(options.calculations ?? []),
+    ...specs.flatMap((s) => s.calculations ?? []),
+  ];
+  // De-duplicate calc specs by name (case-insensitive), keeping the first.
+  const seenCalc = new Set<string>();
+  const dedupedCalcs = allCalcs.filter((c) => {
+    const key = c.name.trim().toLowerCase();
+    if (!key || seenCalc.has(key)) return false;
+    seenCalc.add(key);
+    return true;
+  });
+  if (dedupedCalcs.length) {
+    const calcResult = addCalculatedFields(out, lock, dedupedCalcs, fields);
+    out = calcResult.twbXml;
+    effectiveFields = [...fields, ...calcResult.newFields];
+    calculationsAdded.push(...calcResult.created);
+    for (const e of calcResult.errors) {
+      errors.push({ code: "VALIDATION_FAILED", message: e });
+    }
+  }
 
   for (const spec of specs) {
     const existing = new Set(existingWorksheetNames(out));
@@ -154,7 +201,7 @@ export function applyWorksheets(
 
     let compiled;
     try {
-      compiled = compileWorksheet(targetSpec, lock, fields);
+      compiled = compileWorksheet(targetSpec, lock, effectiveFields);
     } catch (err) {
       errors.push({
         code: "VALIDATION_FAILED",
@@ -172,5 +219,12 @@ export function applyWorksheets(
     else added.push(targetSpec.name);
   }
 
-  return { twbXml: out, added, modified, errors };
+  return {
+    twbXml: out,
+    added,
+    modified,
+    calculationsAdded,
+    effectiveFields,
+    errors,
+  };
 }

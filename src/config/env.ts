@@ -19,7 +19,7 @@ const EnvSchema = z.object({
   LLM_PROVIDER: z
     .enum(["anthropic", "openrouter"])
     .default("anthropic"),
-  LLM_MODEL: z.string().min(1).default("claude-sonnet-4-6"),
+  LLM_MODEL: z.string().min(1).default("claude-opus-4-8"),
 
   // Anthropic gateway
   ANTHROPIC_BASE_URL: z.string().url().optional(),

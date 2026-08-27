@@ -14,7 +14,10 @@ import {
   validateGeneratedTwb,
   validateTwbxStructure,
 } from "./validators/index.js";
-import type { WorksheetSpec } from "../mastra/schemas/worksheet.js";
+import type {
+  CalculatedFieldSpec,
+  WorksheetSpec,
+} from "../mastra/schemas/worksheet.js";
 import type { FieldInfo } from "../mastra/schemas/workbook.js";
 import type { DatasourceLock } from "../mastra/schemas/datasource.js";
 import type {
@@ -28,6 +31,9 @@ export interface CompileToWorkingResult {
   twbEntryName: string;
   added: string[];
   modified: string[];
+  calculationsAdded: { caption: string; name: string }[];
+  /** Original fields plus any newly-created calc fields (for validation). */
+  effectiveFields: FieldInfo[];
   errors: StructuredError[];
   beforeWorksheets: number;
   afterWorksheets: number;
@@ -39,6 +45,7 @@ export async function compileWorkbookToWorking(opts: {
   specs: WorksheetSpec[];
   lock: DatasourceLock;
   fields: FieldInfo[];
+  calculations?: CalculatedFieldSpec[];
   collision?: "modify_existing" | "create_new_version" | "error";
   workspaceRoot?: string;
 }): Promise<CompileToWorkingResult> {
@@ -51,7 +58,10 @@ export async function compileWorkbookToWorking(opts: {
     opts.specs,
     opts.lock,
     opts.fields,
-    { onCollision: opts.collision ?? "modify_existing" },
+    {
+      onCollision: opts.collision ?? "modify_existing",
+      calculations: opts.calculations,
+    },
   );
 
   const base = basename(opts.sourceTwbxPath).replace(/\.twbx?$/i, "");
@@ -69,6 +79,8 @@ export async function compileWorkbookToWorking(opts: {
     twbEntryName: opened.twbEntryName,
     added: applied.added,
     modified: applied.modified,
+    calculationsAdded: applied.calculationsAdded,
+    effectiveFields: applied.effectiveFields,
     errors: applied.errors,
     beforeWorksheets: before,
     afterWorksheets: after,
@@ -123,6 +135,7 @@ export async function buildWorkbook(opts: {
   specs: WorksheetSpec[];
   lock: DatasourceLock;
   fields: FieldInfo[];
+  calculations?: CalculatedFieldSpec[];
   collision?: "modify_existing" | "create_new_version" | "error";
   outputName?: string;
   workspaceRoot?: string;
@@ -145,7 +158,9 @@ export async function buildWorkbook(opts: {
   const validation = await validateTwbxFile({
     twbxPath: compiled.workingPath,
     lock: opts.lock,
-    fields: opts.fields,
+    // Validate against the augmented field set so references to newly-created
+    // calculated fields resolve.
+    fields: compiled.effectiveFields,
     targetWorksheets: target,
   });
   steps.push("TWB validated");
