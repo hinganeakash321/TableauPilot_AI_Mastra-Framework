@@ -11,6 +11,8 @@ import {
   DataTypeSchema,
   DateDerivationSchema,
   FieldRoleSchema,
+  HexColorSchema,
+  TextFormatSchema,
 } from "./common.js";
 import { DatasourceLockSchema } from "./datasource.js";
 
@@ -72,6 +74,22 @@ export const FieldSpecSchema = z.object({
   role: FieldRoleSchema.optional(),
   aggregation: AggregationSchema.optional(),
   dateDerivation: DateDerivationSchema.optional(),
+  /**
+   * Discrete (blue) vs continuous (green) override. When omitted the compiler
+   * uses the natural default (measures continuous; dimensions discrete; date
+   * dimensions follow the chart family). Set `false` to force a field discrete
+   * (e.g. a discrete measure or a discrete date part) or `true` to force it
+   * continuous (e.g. a continuous date axis or a numeric dimension on an axis).
+   */
+  continuous: z.boolean().optional(),
+  /**
+   * Per-member colors when this field is on the COLOR shelf (discrete palette).
+   * Each `value` is a member of the dimension (e.g. "Furniture") mapped to a hex
+   * color. Members without an assignment keep Tableau's automatic palette color.
+   */
+  colors: z
+    .array(z.object({ value: z.string(), color: HexColorSchema }))
+    .optional(),
   /** Number/date format string, e.g. currency. */
   format: z.string().optional(),
   /** Underlying source field for calculated/derived references. */
@@ -135,6 +153,14 @@ export const TopNSchema = z.object({
   byMeasure: z.string(),
   measureAggregation: AggregationSchema.default("sum"),
   direction: z.enum(["top", "bottom"]).default("top"),
+  /**
+   * When set, the N is driven by a PARAMETER instead of the literal `n`. Give the
+   * parameter's display name (e.g. "Top N"); the parameter must exist or be
+   * created in the same build. The filter then reads
+   * `count='[Parameters].[<param>]'`, so users can change N without editing the
+   * workbook. `n` is still used as the parameter's initial value when created.
+   */
+  nParameter: z.string().optional(),
 });
 export type TopN = z.infer<typeof TopNSchema>;
 
@@ -167,14 +193,57 @@ export const CalculatedFieldSpecSchema = z.object({
 });
 export type CalculatedFieldSpec = z.infer<typeof CalculatedFieldSpecSchema>;
 
-/** A parameter the worksheet needs (spec section 49). */
+/** A parameter the workbook needs (spec section 49). */
 export const ParameterSpecSchema = z.object({
   name: z.string(),
   dataType: DataTypeSchema,
+  /** Initial/current value (stringified). Numbers for integer/real params. */
   currentValue: z.string().optional(),
+  /**
+   * Domain of allowed values. `all` = any value; `list` = a fixed set
+   * (`allowedValues`); `range` = a numeric/date range (`rangeMin`/`rangeMax`).
+   */
+  domain: z.enum(["all", "list", "range"]).default("all"),
+  /** Allowed values for a `list` domain. */
   allowedValues: z.array(z.string()).optional(),
+  rangeMin: z.number().optional(),
+  rangeMax: z.number().optional(),
+  rangeStep: z.number().optional(),
 });
 export type ParameterSpec = z.infer<typeof ParameterSpecSchema>;
+
+/**
+ * A reference line on a measure axis (Tableau `<reference-line>`). Aggregate
+ * formulas (average/median/sum/min/max/total) draw a line at that aggregate of
+ * the measure; `constant` draws a fixed line at `value`.
+ */
+export const ReferenceLineSpecSchema = z.object({
+  /** The measure whose axis the line is drawn on. */
+  field: z.string(),
+  /** Aggregation of the measure axis (defaults to sum, matching the pill). */
+  aggregation: AggregationSchema.optional(),
+  formula: z
+    .enum(["average", "median", "sum", "min", "max", "total", "constant"])
+    .default("average"),
+  /** Value for a `constant` line. */
+  value: z.number().optional(),
+  /** Line scope. `per-table` = whole view (default). */
+  scope: z.enum(["per-cell", "per-pane", "per-table"]).default("per-table"),
+  /** Optional label style. */
+  labelType: z.enum(["automatic", "value", "none"]).default("automatic"),
+});
+export type ReferenceLineSpec = z.infer<typeof ReferenceLineSpecSchema>;
+
+/**
+ * Grand totals for a text/cross-tab view (Tableau `total='true'` on the shelves).
+ * `row` adds a grand-total row at the bottom; `column` adds a grand-total column
+ * on the right.
+ */
+export const GrandTotalsSpecSchema = z.object({
+  row: z.boolean().default(false),
+  column: z.boolean().default(false),
+});
+export type GrandTotalsSpec = z.infer<typeof GrandTotalsSpecSchema>;
 
 /** Formatting options (spec section 50). */
 export const FormattingSpecSchema = z.object({
@@ -184,6 +253,12 @@ export const FormattingSpecSchema = z.object({
   decimalPlaces: z.number().int().min(0).max(10).optional(),
   dateFormat: z.string().optional(),
   title: z.string().optional(),
+  /**
+   * Formatting for the WORKSHEET TITLE (font size/color/bold/alignment). When
+   * set, the compiler writes a `<layout-options><title>` block so the sheet title
+   * (also shown on dashboards) is formatted. `title` overrides the title text.
+   */
+  titleFormat: TextFormatSchema.optional(),
   showLabels: z.boolean().optional(),
   alignment: z.enum(["left", "center", "right"]).optional(),
   fontSize: z.number().int().min(6).max(72).optional(),
@@ -208,6 +283,10 @@ export const WorksheetSpecSchema = z.object({
   filters: z.array(WorksheetFilterSpecSchema).default([]),
   calculations: z.array(CalculatedFieldSpecSchema).default([]),
   parameters: z.array(ParameterSpecSchema).default([]),
+  /** Reference/average lines drawn on measure axes. */
+  referenceLines: z.array(ReferenceLineSpecSchema).optional(),
+  /** Grand totals (row / column) for text tables and cross-tabs. */
+  grandTotals: GrandTotalsSpecSchema.optional(),
   formatting: FormattingSpecSchema.optional(),
   tooltip: TooltipSpecSchema.optional(),
 });
@@ -254,6 +333,8 @@ export const WorkbookBuildResultSchema = z.object({
   outputPath: z.string().optional(),
   worksheetsAdded: z.array(z.string()).default([]),
   worksheetsModified: z.array(z.string()).default([]),
+  dashboardsAdded: z.array(z.string()).default([]),
+  dashboardsModified: z.array(z.string()).default([]),
   datasourcePreserved: z.boolean(),
   validationPassed: z.boolean(),
   diff: z

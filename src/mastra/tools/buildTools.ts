@@ -20,6 +20,7 @@ import { openTwbx } from "../../tableau/twbx.js";
 import {
   WorksheetSpecSchema,
   CalculatedFieldSpecSchema,
+  ParameterSpecSchema,
   DatasourceLockSchema,
   ValidationResultSchema,
 } from "../schemas/index.js";
@@ -61,9 +62,10 @@ export const compileWorkbook = createTool({
   description:
     "Apply worksheet specs to the source TWBX and write a WORKING TWBX (original " +
     "is never modified). Enforces the datasource lock. Creates any calculated " +
-    "fields (from `calculations` or from each spec's `calculations`) in the locked " +
-    "datasource so worksheets can reference them by name. Returns the working " +
-    "path, the calculated fields created, and a before/after worksheet diff.",
+    "fields (from `calculations` or each spec's `calculations`) and any parameters " +
+    "(from `parameters` or each spec's `parameters`) so worksheets can reference " +
+    "them by name. Returns the working path, calc fields + parameters created, and " +
+    "a before/after worksheet diff.",
   inputSchema: z.object({
     sourceTwbxPath: z.string(),
     lock: DatasourceLockSchema,
@@ -73,6 +75,12 @@ export const compileWorkbook = createTool({
      * any declared on individual specs). Reference them from shelves by `name`.
      */
     calculations: z.array(CalculatedFieldSpecSchema).optional(),
+    /**
+     * Parameters to create once in the Parameters datasource (in addition to any
+     * declared on individual specs). Reference them by name (e.g. in a Top-N
+     * filter's `nParameter` or in a calculated field's formula).
+     */
+    parameters: z.array(ParameterSpecSchema).optional(),
     collision: CollisionSchema,
   }),
   outputSchema: toolResult(
@@ -81,6 +89,9 @@ export const compileWorkbook = createTool({
       added: z.array(z.string()),
       modified: z.array(z.string()),
       calculationsAdded: z.array(
+        z.object({ caption: z.string(), name: z.string() }),
+      ),
+      parametersAdded: z.array(
         z.object({ caption: z.string(), name: z.string() }),
       ),
       errors: z.array(z.object({ code: z.string(), message: z.string() })),
@@ -97,6 +108,7 @@ export const compileWorkbook = createTool({
         lock: inputData.lock,
         fields: r.fields,
         calculations: inputData.calculations,
+        parameters: inputData.parameters,
         collision: inputData.collision,
       });
       return {
@@ -104,6 +116,7 @@ export const compileWorkbook = createTool({
         added: res.added,
         modified: res.modified,
         calculationsAdded: res.calculationsAdded,
+        parametersAdded: res.parametersAdded,
         errors: res.errors.map((e) => ({ code: e.code, message: e.message })),
         beforeWorksheets: res.beforeWorksheets,
         afterWorksheets: res.afterWorksheets,

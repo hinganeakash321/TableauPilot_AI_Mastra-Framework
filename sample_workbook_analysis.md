@@ -147,7 +147,115 @@ same **column-instance** name as the pill (e.g. `none:Category:nk`, `yr:Order Da
 Member quoting rule: **string** members are wrapped in `&quot;…&quot;`; **numeric,
 boolean, and date-part** members are written bare (`2026`, `12`, `true`).
 
-## 7. Implications for the compiler
+## 7. Advanced feature XML patterns (from the sample)
+
+**Per-member colors** (pane `<style>`): a dimension gets a discrete palette.
+```xml
+<style-rule element='mark'>
+  <encoding attr='color' field='[none:State:nk]' type='palette'>
+    <map to='#499894'><bucket>&quot;Bali&quot;</bucket></map>
+    ...
+  </encoding>
+</style-rule>
+```
+Measure-on-color = automatic gradient (just place the measure on the color shelf).
+
+**Reference / average line** (sibling under `<pane>`, after `<encodings>`):
+```xml
+<reference-line axis-column='[ds].[sum:Sales:qk]' enable-instant-analytics='true'
+  formula='average' id='refline0' label-type='automatic' scope='per-table'
+  value-column='[ds].[sum:Sales:qk]' z-order='1' />
+```
+
+**Grand totals**: `total='true'` on the shelf elements — `<rows total='true'>…</rows>`
+and `<cols total='true'>…</cols>`.
+
+**Discrete vs continuous**: the column-instance `type` + key encode it —
+`type='quantitative'` → `:qk` (continuous/green), `type='ordinal'` → `:ok`,
+`type='nominal'` → `:nk` (discrete/blue). Continuous date parts use a `t*` code +
+`*-Trunc` derivation (e.g. `tmn:Order Date:qk` derivation `Month-Trunc`); discrete
+parts use `mn:Order Date:ok` derivation `Month`.
+
+**Parameters**: stored in a pseudo-datasource; referenced by internal name.
+```xml
+<datasource hasconnection='false' inline='true' name='Parameters' version='18.1'>
+  <column caption='Top N' datatype='integer' name='[Parameter 1]'
+    param-domain-type='any' role='measure' type='quantitative' value='5'>
+    <calculation class='tableau' formula='5' />
+  </column>
+</datasource>
+```
+Parameter-driven Top-N uses the parameter as the count, plus a per-worksheet
+`<datasource-dependencies datasource='Parameters'>` re-declaring the column:
+```xml
+<groupfilter count='[Parameters].[Parameter 1]' end='top' function='end' units='records' ...>
+```
+
+**Dashboard filter action** (workbook-level `<actions>`, before `<worksheets>`):
+```xml
+<action caption='Filter on dashboard' name='[Action1_<32hex>]'>
+  <activation auto-clear='true' type='on-select' />
+  <source dashboard='<dash>' type='sheet'>
+    <exclude-sheet name='<kpi sheet>' />
+  </source>
+  <command command='tsc:tsl-filter'>
+    <param name='special-fields' value='all' />
+    <param name='target' value='<dash>' />
+  </command>
+</action>
+```
+
+**Dashboard layout / padding / border / colors** — every dashboard zone carries a
+`<zone-style>`. The root `layout-basic` zone's `margin` is the OUTER padding; each
+inner zone's `margin` is the INNER padding. Container background + border live here
+too. The dashboard color is a `<style-rule element='table'>` on the dashboard.
+```xml
+<!-- dashboard color -->
+<style><style-rule element='table'>
+  <format attr='background-color' value='#e6e6e6' /></style-rule></style>
+<!-- a chart container zone-style -->
+<zone-style>
+  <format attr='border-color' value='#000000' />
+  <format attr='border-style' value='none' />
+  <format attr='border-width' value='0' />
+  <format attr='margin' value='4' />            <!-- inner padding -->
+  <format attr='background-color' value='#ffffff' /> <!-- container color -->
+</zone-style>
+```
+
+**Dashboard sizing** — the `<size>` element (three Tableau modes). The sample uses
+automatic + fixed; range follows the same shape with `sizing-mode='range'` and
+min < max:
+```xml
+<size sizing-mode='automatic' />                                   <!-- automatic -->
+<size maxheight='1500' maxwidth='1200' minheight='1500' minwidth='1200' sizing-mode='fixed' />
+<size maxheight='1050' maxwidth='1400' minheight='600'  minwidth='800'  sizing-mode='range' />
+```
+Container sizes come from the proportional zone `w`/`h` in the 0-100000 space; the
+compiler derives them from per-cell `width` / per-row `height` (px on fixed/range,
+weights on automatic).
+
+**Title / heading text formatting** — the title band and filter heading are `text`
+zones whose `<run>` carries the font attributes (alignment 0=left/1=center/2=right):
+```xml
+<formatted-text>
+  <run bold='true' fontalignment='1' fontcolor='#1b1b1b'
+    fontname='Tableau Bold' fontsize='16'>Superstore Analysis</run>
+</formatted-text>
+```
+
+**Sheet (worksheet) title formatting** — a WORKSHEET-level property, not a dashboard
+one; the dashboard just renders it. Placed right after `<worksheet name=...>`, before
+`<table>`:
+```xml
+<layout-options>
+  <title><formatted-text>
+    <run fontcolor='#0044cc' fontsize='14'>Category Performance</run>
+  </formatted-text></title>
+</layout-options>
+```
+
+## 8. Implications for the compiler
 
 - The LLM never writes this XML. It emits a `WorksheetSpec` (Zod). The compiler
   maps `chartType` -> mark class + placement recipe, resolves each `FieldSpec`
@@ -155,4 +263,5 @@ boolean, and date-part** members are written bare (`2026`, `12`, `true`).
 - Internal consistency (rows/cols/encoding refs all declared in
   `datasource-dependencies`, all pointing at the locked `dsId`, all fields real)
   is what guarantees the workbook opens in Tableau Desktop.
-- The datasource block and `.hyper` are never modified.
+- The datasource block and `.hyper` are never modified. Parameters live in the
+  separate `Parameters` pseudo-datasource, parallel to calculated fields.

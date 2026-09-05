@@ -9,15 +9,21 @@
 import { basename, join } from "node:path";
 import { openTwbx, writeTwbx, ensureWorkspace, type OpenedTwbx } from "./twbx.js";
 import { inspectTwbXml } from "./twb.js";
-import { applyWorksheets, existingWorksheetNames } from "./compiler/workbookCompiler.js";
+import {
+  applyDashboards,
+  applyWorksheets,
+  existingWorksheetNames,
+} from "./compiler/workbookCompiler.js";
 import {
   validateGeneratedTwb,
   validateTwbxStructure,
 } from "./validators/index.js";
 import type {
   CalculatedFieldSpec,
+  ParameterSpec,
   WorksheetSpec,
 } from "../mastra/schemas/worksheet.js";
+import type { DashboardSpec } from "../mastra/schemas/dashboard.js";
 import type { FieldInfo } from "../mastra/schemas/workbook.js";
 import type { DatasourceLock } from "../mastra/schemas/datasource.js";
 import type {
@@ -31,7 +37,10 @@ export interface CompileToWorkingResult {
   twbEntryName: string;
   added: string[];
   modified: string[];
+  dashboardsAdded: string[];
+  dashboardsModified: string[];
   calculationsAdded: { caption: string; name: string }[];
+  parametersAdded: { caption: string; name: string }[];
   /** Original fields plus any newly-created calc fields (for validation). */
   effectiveFields: FieldInfo[];
   errors: StructuredError[];
@@ -46,6 +55,8 @@ export async function compileWorkbookToWorking(opts: {
   lock: DatasourceLock;
   fields: FieldInfo[];
   calculations?: CalculatedFieldSpec[];
+  parameters?: ParameterSpec[];
+  dashboards?: DashboardSpec[];
   collision?: "modify_existing" | "create_new_version" | "error";
   workspaceRoot?: string;
 }): Promise<CompileToWorkingResult> {
@@ -61,27 +72,50 @@ export async function compileWorkbookToWorking(opts: {
     {
       onCollision: opts.collision ?? "modify_existing",
       calculations: opts.calculations,
+      parameters: opts.parameters,
     },
   );
+
+  // Dashboards are applied AFTER worksheets so they can reference newly-built
+  // sheets, and their apply-to-all filters land on every datasource worksheet.
+  let finalTwbXml = applied.twbXml;
+  const dashboardsAdded: string[] = [];
+  const dashboardsModified: string[] = [];
+  const errors = [...applied.errors];
+  if (opts.dashboards && opts.dashboards.length > 0) {
+    const dash = applyDashboards(
+      finalTwbXml,
+      opts.dashboards,
+      opts.lock,
+      applied.effectiveFields,
+    );
+    finalTwbXml = dash.twbXml;
+    dashboardsAdded.push(...dash.dashboardsAdded);
+    dashboardsModified.push(...dash.dashboardsModified);
+    errors.push(...dash.errors);
+  }
 
   const base = basename(opts.sourceTwbxPath).replace(/\.twbx?$/i, "");
   const workingPath = join(ws.working, `${base}_working.twbx`);
   await writeTwbx(
     workingPath,
     opened.twbEntryName,
-    applied.twbXml,
+    finalTwbXml,
     opened.entries,
   );
-  const after = existingWorksheetNames(applied.twbXml).length;
+  const after = existingWorksheetNames(finalTwbXml).length;
 
   return {
     workingPath,
     twbEntryName: opened.twbEntryName,
     added: applied.added,
     modified: applied.modified,
+    dashboardsAdded,
+    dashboardsModified,
     calculationsAdded: applied.calculationsAdded,
+    parametersAdded: applied.parametersAdded,
     effectiveFields: applied.effectiveFields,
-    errors: applied.errors,
+    errors,
     beforeWorksheets: before,
     afterWorksheets: after,
   };
@@ -136,6 +170,8 @@ export async function buildWorkbook(opts: {
   lock: DatasourceLock;
   fields: FieldInfo[];
   calculations?: CalculatedFieldSpec[];
+  parameters?: ParameterSpec[];
+  dashboards?: DashboardSpec[];
   collision?: "modify_existing" | "create_new_version" | "error";
   outputName?: string;
   workspaceRoot?: string;
@@ -143,11 +179,16 @@ export async function buildWorkbook(opts: {
   const steps: string[] = [];
   const compiled = await compileWorkbookToWorking(opts);
   steps.push("Worksheet compiler executed");
+  if (compiled.dashboardsAdded.length || compiled.dashboardsModified.length) {
+    steps.push("Dashboard compiler executed");
+  }
   if (compiled.errors.length > 0) {
     return {
       success: false,
       worksheetsAdded: compiled.added,
       worksheetsModified: compiled.modified,
+      dashboardsAdded: compiled.dashboardsAdded,
+      dashboardsModified: compiled.dashboardsModified,
       datasourcePreserved: true,
       validationPassed: false,
       steps,
@@ -170,6 +211,8 @@ export async function buildWorkbook(opts: {
       success: false,
       worksheetsAdded: compiled.added,
       worksheetsModified: compiled.modified,
+      dashboardsAdded: compiled.dashboardsAdded,
+      dashboardsModified: compiled.dashboardsModified,
       datasourcePreserved: true,
       validationPassed: false,
       steps,
@@ -196,6 +239,8 @@ export async function buildWorkbook(opts: {
     outputPath: packaged.outputPath,
     worksheetsAdded: compiled.added,
     worksheetsModified: compiled.modified,
+    dashboardsAdded: compiled.dashboardsAdded,
+    dashboardsModified: compiled.dashboardsModified,
     datasourcePreserved,
     validationPassed: true,
     diff: {

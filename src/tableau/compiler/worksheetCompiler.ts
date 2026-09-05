@@ -22,7 +22,13 @@ import type {
   FieldRole,
 } from "../../mastra/schemas/common.js";
 import { getChartRecipe } from "../../../templates/registry/index.js";
-import { resolvePill, type PillInput, type ResolvedPill } from "./columnInstance.js";
+import {
+  resolvePill,
+  plainColumnDecl,
+  type PillInput,
+  type ResolvedPill,
+} from "./columnInstance.js";
+import { parameterColumnXml, type ParameterColumn } from "./parameters.js";
 import { xmlEscape } from "../xml.js";
 
 /** Result of compiling one worksheet. */
@@ -86,12 +92,15 @@ function toPillInput(
 ): PillInput {
   const info = index.find(spec.name);
   const dataType: DataType = spec.dataType ?? info?.dataType ?? "string";
-  const role: FieldRole =
-    spec.role ??
-    info?.role ??
-    (dataType === "real" || dataType === "integer" ? "measure" : "dimension");
+  // An already-aggregated field is always a measure used as AGG(field).
+  const aggregated = info?.aggregated ?? false;
+  const role: FieldRole = aggregated
+    ? "measure"
+    : (spec.role ??
+      info?.role ??
+      (dataType === "real" || dataType === "integer" ? "measure" : "dimension"));
   const aggregation: Aggregation | undefined =
-    role === "measure"
+    role === "measure" && !aggregated
       ? (spec.aggregation && spec.aggregation !== "none"
           ? spec.aggregation
           : (info?.defaultAggregation ?? "sum"))
@@ -104,8 +113,10 @@ function toPillInput(
     role,
     dataType,
     aggregation,
+    aggregated,
     dateDerivation: spec.dateDerivation,
     continuousDate,
+    continuous: spec.continuous,
     format: spec.format ?? info?.defaultFormat,
   };
 }
@@ -115,12 +126,35 @@ class DependencyBuilder {
   private columns = new Map<string, string>();
   private instances = new Map<string, string>();
 
+  /** `index` lets the builder co-declare a derived field's source columns. */
+  constructor(private readonly index?: FieldIndex) {}
+
   add(pill: ResolvedPill): void {
     if (!this.columns.has(pill.name)) {
       this.columns.set(pill.name, pill.columnDecl);
     }
     if (!this.instances.has(pill.instanceName)) {
       this.instances.set(pill.instanceName, pill.columnInstanceDecl);
+    }
+    this.addSourceColumns(pill.name);
+  }
+
+  /**
+   * Declares the source columns a derived field (bin/group/calc) depends on, so
+   * Tableau can resolve it. Recurses in case a source is itself derived.
+   */
+  addSourceColumns(fieldName: string, seen = new Set<string>()): void {
+    if (!this.index || seen.has(fieldName)) return;
+    seen.add(fieldName);
+    const field = this.index.find(fieldName);
+    if (!field || field.dependsOn.length === 0) return;
+    for (const srcName of field.dependsOn) {
+      const src = this.index.find(srcName);
+      if (!src) continue;
+      if (!this.columns.has(src.name)) {
+        this.columns.set(src.name, plainColumnDecl(src));
+      }
+      this.addSourceColumns(src.name, seen);
     }
   }
 
@@ -180,10 +214,17 @@ function buildFilters(
   index: FieldIndex,
   dsId: string,
   deps: DependencyBuilder,
-): { filterXml: string; sortXml: string; sliceXml: string } {
+  params: Map<string, ParameterColumn> = new Map(),
+): {
+  filterXml: string;
+  sortXml: string;
+  sliceXml: string;
+  paramColumnsUsed: ParameterColumn[];
+} {
   const filterParts: string[] = [];
   const sortParts: string[] = [];
   const sliceCols: string[] = [];
+  const paramColumnsUsed: ParameterColumn[] = [];
 
   for (const f of filters) {
     const ctx = f.context ? " context='true'" : "";
@@ -213,6 +254,18 @@ function buildFilters(
       const dir = f.topN.direction === "top" ? "DESC" : "ASC";
       const aggFn = (f.topN.measureAggregation ?? "sum").toUpperCase();
       const measureField = index.find(f.topN.byMeasure)?.name ?? f.topN.byMeasure;
+      // The N is either a literal or driven by a parameter (`count='[Parameters].
+      // [Parameter N]'`), matching the sample workbook's parameterized Top-N.
+      let countExpr = String(f.topN.n);
+      if (f.topN.nParameter) {
+        const p = params.get(f.topN.nParameter.trim().toLowerCase());
+        if (p) {
+          countExpr = `[Parameters].[${p.name}]`;
+          if (!paramColumnsUsed.some((c) => c.name === p.name)) {
+            paramColumnsUsed.push(p);
+          }
+        }
+      }
       // The Top-N filter's inner `function='order'` groupfilter both selects AND
       // orders the top/bottom N by the measure. We deliberately do NOT emit a
       // separate `<computed-sort>`: some Tableau runtimes validate the worksheet
@@ -222,7 +275,7 @@ function buildFilters(
       // correct N records; the measure pill still drives the ordering.
       filterParts.push(
         `          <filter class='categorical' column='${dimPill.ref(dsId)}'${ctx}>\n` +
-          `            <groupfilter count='${f.topN.n}' end='${end}' function='end' units='records' user:ui-marker='end' user:ui-top-by-field='true'>\n` +
+          `            <groupfilter count='${countExpr}' end='${end}' function='end' units='records' user:ui-marker='end' user:ui-top-by-field='true'>\n` +
           `              <groupfilter direction='${dir}' expression='${aggFn}([${xmlEscape(measureField)}])' function='order' user:ui-marker='order'>\n` +
           `                <groupfilter function='level-members' level='[${dimPill.instanceName}]' user:ui-manual-selection='true' user:ui-manual-selection-all-when-empty='true' user:ui-marker='enumerate' />\n` +
           `              </groupfilter>\n` +
@@ -300,6 +353,7 @@ function buildFilters(
     filterXml: filterParts.join("\n"),
     sortXml: sortParts.join("\n"),
     sliceXml,
+    paramColumnsUsed,
   };
 }
 
@@ -335,7 +389,16 @@ function buildEncodings(
   return parts.join("\n");
 }
 
-/** Builds the rows/cols pill reference string for a list of field specs. */
+/**
+ * Builds the rows/cols pill reference string for a list of field specs.
+ *
+ * A shelf is a Tableau EXPRESSION, so multiple pills must be joined by an
+ * operator and wrapped in parentheses - bare concatenation
+ * (`[a][b]`) makes Tableau fail with "unable to associate operators with
+ * operands". Discrete pills join with ` / ` and continuous/measure pills with
+ * ` + ` (matching the sample workbook, e.g. `([Category] / [Region])` and
+ * `([sum:Discount:qk] + [sum:Profit:qk])`). A single pill is emitted bare.
+ */
 function buildShelf(
   fields: FieldSpec[],
   chartType: ChartType,
@@ -343,13 +406,16 @@ function buildShelf(
   dsId: string,
   deps: DependencyBuilder,
 ): string {
-  return fields
-    .map((fs) => {
-      const pill = resolvePill(toPillInput(fs, chartType, index));
-      deps.add(pill);
-      return pill.ref(dsId);
-    })
-    .join("");
+  const pills = fields.map((fs) => {
+    const pill = resolvePill(toPillInput(fs, chartType, index));
+    deps.add(pill);
+    return pill;
+  });
+  if (pills.length === 0) return "";
+  if (pills.length === 1) return pills[0]!.ref(dsId);
+  const allContinuous = pills.every((p) => p.typeAttr === "quantitative");
+  const sep = allContinuous ? " + " : " / ";
+  return `(${pills.map((p) => p.ref(dsId)).join(sep)})`;
 }
 
 /** Builds the `<window>` registration entry for a worksheet. */
@@ -401,6 +467,12 @@ function assembleWorksheet(opts: {
   tableStyleXml?: string;
   rows: string;
   cols: string;
+  /** Emit `total='true'` on the `<rows>` shelf (grand total). */
+  rowsTotal?: boolean;
+  /** Emit `total='true'` on the `<cols>` shelf (grand total). */
+  colsTotal?: boolean;
+  /** Parameter columns this worksheet depends on (e.g. a Top-N parameter). */
+  parameterColumns?: ParameterColumn[];
   mapsources?: boolean;
 }): string {
   const {
@@ -417,11 +489,25 @@ function assembleWorksheet(opts: {
     cols,
   } = opts;
 
+  const paramCols = opts.parameterColumns ?? [];
+  const hasParams = paramCols.length > 0;
+  const datasourcesXml =
+    `          <datasources>\n` +
+    `            <datasource caption='${xmlEscape(dsCaption)}' name='${dsId}' />\n` +
+    (hasParams ? `            <datasource name='Parameters' />\n` : "") +
+    `          </datasources>`;
+  const paramDepsXml = hasParams
+    ? `          <datasource-dependencies datasource='Parameters'>\n` +
+      paramCols.map((p) => parameterColumnXml(p, "            ")).join("\n") +
+      `\n          </datasource-dependencies>`
+    : "";
+
   const viewParts = [
-    `          <datasources>\n            <datasource caption='${xmlEscape(dsCaption)}' name='${dsId}' />\n          </datasources>`,
+    datasourcesXml,
     opts.mapsources
       ? `          <mapsources>\n            <mapsource name='Tableau' />\n          </mapsources>`
       : "",
+    paramDepsXml,
     deps.render(dsId),
     filterXml,
     sortXml,
@@ -445,6 +531,8 @@ function assembleWorksheet(opts: {
       `        </panes>`;
 
   const tableStyle = opts.tableStyleXml ? `${opts.tableStyleXml}\n` : `        <style />\n`;
+  const rowsAttr = opts.rowsTotal ? " total='true'" : "";
+  const colsAttr = opts.colsTotal ? " total='true'" : "";
 
   return (
     `    <worksheet name='${xmlEscape(name)}'>\n` +
@@ -454,8 +542,8 @@ function assembleWorksheet(opts: {
     `\n        </view>\n` +
     tableStyle +
     panes +
-    `\n        <rows>${rows}</rows>\n` +
-    `        <cols>${cols}</cols>\n` +
+    `\n        <rows${rowsAttr}>${rows}</rows>\n` +
+    `        <cols${colsAttr}>${cols}</cols>\n` +
     `      </table>\n` +
     `      <simple-id uuid='{${randomUUID().toUpperCase()}}' />\n` +
     `    </worksheet>`
@@ -468,7 +556,7 @@ function compileKpi(
   lock: DatasourceLock,
   index: FieldIndex,
 ): CompiledWorksheet {
-  const deps = new DependencyBuilder();
+  const deps = new DependencyBuilder(index);
   // The measure is taken from the first label encoding, or first row/column measure.
   const measureSpec =
     spec.marks.flatMap((m) => m.encodings).find((e) => e.shelf === "label")
@@ -535,7 +623,7 @@ function compileDual(
   index: FieldIndex,
 ): CompiledWorksheet {
   const dsId = lock.datasourceId;
-  const deps = new DependencyBuilder();
+  const deps = new DependencyBuilder(index);
   const measures = [...spec.rows, ...spec.marks.flatMap((m) => m.encodings.map((e) => e.field))].filter(
     (f) => (index.find(f.name)?.role ?? f.role) === "measure",
   );
@@ -597,7 +685,7 @@ function compileMap(
   index: FieldIndex,
 ): CompiledWorksheet {
   const dsId = lock.datasourceId;
-  const deps = new DependencyBuilder();
+  const deps = new DependencyBuilder(index);
   const encodings = buildEncodings(spec, spec.chartType, index, dsId, deps);
   // Geographic dimensions go to detail (lod) if not already encoded.
   const geoDims = spec.rows.concat(spec.columns).filter((f) => {
@@ -629,22 +717,127 @@ function compileMap(
   return { name: spec.name, worksheetXml, windowXml: buildWindow(spec.name) };
 }
 
+/**
+ * Builds `<encoding attr='color' ... type='palette'>` blocks for any COLOR-shelf
+ * field that carries per-member `colors`. These sit inside the pane's
+ * `<style-rule element='mark'>` and assign a hex color to each dimension member,
+ * exactly like the sample workbook (e.g. `<map to='#499894'><bucket>"Bali"...`).
+ * Members without an assignment keep Tableau's automatic palette color.
+ */
+function buildColorEncodings(
+  spec: WorksheetSpec,
+  chartType: ChartType,
+  index: FieldIndex,
+): string {
+  const parts: string[] = [];
+  for (const mark of spec.marks) {
+    for (const enc of mark.encodings) {
+      if (enc.shelf !== "color" || !enc.field.colors?.length) continue;
+      const info = index.find(enc.field.name);
+      const pill = resolvePill(
+        toPillInput(
+          {
+            ...enc.field,
+            role: enc.field.role ?? info?.role,
+            dataType: enc.field.dataType ?? info?.dataType,
+          } as FieldSpec,
+          chartType,
+          index,
+        ),
+      );
+      const maps = enc.field.colors
+        .map(
+          (c) =>
+            `                <map to='${xmlEscape(c.color)}'>\n` +
+            `                  <bucket>&quot;${xmlEscape(c.value)}&quot;</bucket>\n` +
+            `                </map>`,
+        )
+        .join("\n");
+      parts.push(
+        `              <encoding attr='color' field='[${pill.instanceName}]' type='palette'>\n` +
+          maps +
+          `\n              </encoding>`,
+      );
+    }
+  }
+  return parts.join("\n");
+}
+
+/** Tableau reference-line formula names keyed by our schema's formula enum. */
+const REFLINE_FORMULA: Record<string, string> = {
+  average: "average",
+  median: "median",
+  sum: "sum",
+  min: "minimum",
+  max: "maximum",
+  total: "total",
+};
+
+/**
+ * Builds `<reference-line>` elements for a pane, modeled on the sample workbook's
+ * average line. Aggregate lines (average/median/sum/min/max/total) draw at that
+ * aggregate of the measure; `constant` draws at a fixed value.
+ */
+function buildReferenceLines(
+  spec: WorksheetSpec,
+  chartType: ChartType,
+  index: FieldIndex,
+  dsId: string,
+  deps: DependencyBuilder,
+): string {
+  const lines = spec.referenceLines ?? [];
+  if (!lines.length) return "";
+  return lines
+    .map((rl, i) => {
+      const info = index.find(rl.field);
+      const pill = resolvePill(
+        toPillInput(
+          {
+            name: info?.name ?? rl.field,
+            role: "measure",
+            aggregation: rl.aggregation,
+          } as FieldSpec,
+          chartType,
+          index,
+        ),
+      );
+      deps.add(pill);
+      const ref = pill.ref(dsId);
+      if (rl.formula === "constant") {
+        return (
+          `            <reference-line axis-column='${ref}' enable-instant-analytics='true' ` +
+          `id='refline${i}' label-type='${rl.labelType}' scope='${rl.scope}' ` +
+          `value='${rl.value ?? 0}' z-order='1' />`
+        );
+      }
+      const formula = REFLINE_FORMULA[rl.formula] ?? "average";
+      return (
+        `            <reference-line axis-column='${ref}' enable-instant-analytics='true' ` +
+        `formula='${formula}' id='refline${i}' label-type='${rl.labelType}' scope='${rl.scope}' ` +
+        `value-column='${ref}' z-order='1' />`
+      );
+    })
+    .join("\n");
+}
+
 /** Generic single-pane compiler covering most chart families. */
 function compileGeneric(
   spec: WorksheetSpec,
   lock: DatasourceLock,
   index: FieldIndex,
+  params: Map<string, ParameterColumn> = new Map(),
 ): CompiledWorksheet {
   const dsId = lock.datasourceId;
   const recipe = getChartRecipe(spec.chartType);
-  const deps = new DependencyBuilder();
+  const deps = new DependencyBuilder(index);
 
-  const { filterXml, sortXml, sliceXml } = buildFilters(
+  const { filterXml, sortXml, sliceXml, paramColumnsUsed } = buildFilters(
     spec.filters,
     spec.chartType,
     index,
     dsId,
     deps,
+    params,
   );
   const encodingsXml = buildEncodings(spec, spec.chartType, index, dsId, deps);
 
@@ -682,14 +875,30 @@ function compileGeneric(
   }
   const allEncodingsXml = [encodingsXml, extraLabelXml].filter(Boolean).join("\n");
 
-  const paneStyleXml = showLabels
+  // Pane `<style>` = a single `<style-rule element='mark'>` holding any per-member
+  // color palette encodings followed by the mark-label formats (matching the
+  // sample workbook's structure).
+  const colorEncodingsXml = buildColorEncodings(spec, spec.chartType, index);
+  const labelFormatsXml = showLabels
+    ? `              <format attr='mark-labels-show' value='true' />\n` +
+      `              <format attr='mark-labels-cull' value='true' />`
+    : "";
+  const markRuleInner = [colorEncodingsXml, labelFormatsXml]
+    .filter(Boolean)
+    .join("\n");
+  const paneStyleXml = markRuleInner
     ? `            <style>\n` +
       `              <style-rule element='mark'>\n` +
-      `                <format attr='mark-labels-show' value='true' />\n` +
-      `                <format attr='mark-labels-cull' value='true' />\n` +
-      `              </style-rule>\n` +
+      markRuleInner +
+      `\n              </style-rule>\n` +
       `            </style>\n`
     : undefined;
+
+  // Reference/average lines sit under the pane, after encodings, before <style>.
+  const reflineXml = buildReferenceLines(spec, spec.chartType, index, dsId, deps);
+  const paneExtraXml = [reflineXml, paneStyleXml?.replace(/\n$/, "")]
+    .filter(Boolean)
+    .join("\n");
 
   const tableStyleXml =
     showLabels && measurePill && measureFormat
@@ -710,36 +919,85 @@ function compileGeneric(
     sliceXml,
     markClass: recipe.markClass,
     encodingsXml: allEncodingsXml,
-    paneExtraXml: paneStyleXml,
+    paneExtraXml: paneExtraXml || undefined,
     tableStyleXml,
     rows,
     cols,
+    rowsTotal: spec.grandTotals?.row ?? false,
+    colsTotal: spec.grandTotals?.column ?? false,
+    parameterColumns: paramColumnsUsed,
   });
   return { name: spec.name, worksheetXml, windowXml: buildWindow(spec.name) };
 }
 
 /**
+ * Injects a `<layout-options><title>` block (formatted sheet title) right after
+ * the `<worksheet name=...>` open tag when the spec provides a titleFormat. This
+ * is what formats the title shown on the sheet AND on any dashboard. Only emitted
+ * when a titleFormat is present, so default worksheets are unchanged.
+ */
+function injectTitleLayout(worksheetXml: string, spec: WorksheetSpec): string {
+  const fmt = spec.formatting?.titleFormat;
+  if (!fmt) return worksheetXml;
+  const titleText = spec.formatting?.title ?? spec.name;
+  const align =
+    fmt.alignment === "center" ? "1" : fmt.alignment === "right" ? "2" : "0";
+  const bold = fmt.bold ? "bold='true' " : "";
+  const color = fmt.color ?? "#000000";
+  const fontName = fmt.fontName ?? "Tableau Book";
+  const fontSize = fmt.fontSize ?? 12;
+  const run =
+    `<run ${bold}fontalignment='${align}' fontcolor='${xmlEscape(color)}' ` +
+    `fontname='${xmlEscape(fontName)}' fontsize='${fontSize}'>${xmlEscape(titleText)}</run>`;
+  const block =
+    `      <layout-options>\n` +
+    `        <title>\n` +
+    `          <formatted-text>\n` +
+    `            ${run}\n` +
+    `          </formatted-text>\n` +
+    `        </title>\n` +
+    `      </layout-options>\n`;
+  return worksheetXml.replace(
+    /(<worksheet name='(?:[^']*)'>\n)/,
+    `$1${block}`,
+  );
+}
+
+/**
  * Compiles a WorksheetSpec into a worksheet + window XML pair. Dispatches to the
  * specialized builder for KPI, dual-axis, and map charts.
+ *
+ * `params` are the workbook's parameter columns (existing + newly created) so a
+ * Top-N filter driven by a parameter can reference `[Parameters].[Parameter N]`.
  */
 export function compileWorksheet(
   spec: WorksheetSpec,
   lock: DatasourceLock,
   fields: FieldInfo[],
+  params: ParameterColumn[] = [],
 ): CompiledWorksheet {
   const index = new FieldIndex(fields);
+  const paramMap = new Map(params.map((p) => [p.caption.trim().toLowerCase(), p]));
+  let compiled: CompiledWorksheet;
   switch (spec.chartType) {
     case "kpi":
-      return compileKpi(spec, lock, index);
+      compiled = compileKpi(spec, lock, index);
+      break;
     case "dual_line":
     case "dual_axis":
     case "bar_line_combo":
-      return compileDual(spec, lock, index);
+      compiled = compileDual(spec, lock, index);
+      break;
     case "map":
     case "symbol_map":
     case "filled_map":
-      return compileMap(spec, lock, index);
+      compiled = compileMap(spec, lock, index);
+      break;
     default:
-      return compileGeneric(spec, lock, index);
+      compiled = compileGeneric(spec, lock, index, paramMap);
   }
+  return {
+    ...compiled,
+    worksheetXml: injectTitleLayout(compiled.worksheetXml, spec),
+  };
 }

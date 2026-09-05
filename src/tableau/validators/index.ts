@@ -116,22 +116,29 @@ export function validateFieldExistence(
     const name = m[1]!;
     if (scope && !scope.has(name)) continue;
     const body = m[2]!;
-    const depBlock =
-      /<datasource-dependencies\b[^>]*>([\s\S]*?)<\/datasource-dependencies>/.exec(
-        body,
-      )?.[1] ?? "";
-    const colRe = /<column\b[^>]*\bname='\[([^\]]+)\]'/g;
-    let c: RegExpExecArray | null;
-    while ((c = colRe.exec(depBlock)) !== null) {
-      const field = c[1]!;
-      if (GENERATED_FIELDS.has(field)) continue;
-      if (field.includes(":")) continue; // column-instance, checked via its column
-      if (!known.has(field.toLowerCase())) {
-        errors.push({
-          code: "FIELD_NOT_FOUND",
-          message: `Worksheet '${name}' references unknown field '${field}'.`,
-          suggestions: nearestMatches(field, fields),
-        });
+    // Scan every datasource-dependencies block, but SKIP the Parameters
+    // pseudo-datasource: its columns are parameters (e.g. `[Parameter 1]`), not
+    // data fields, and are valid by construction.
+    const depRe =
+      /<datasource-dependencies\b([^>]*)>([\s\S]*?)<\/datasource-dependencies>/g;
+    let dep: RegExpExecArray | null;
+    while ((dep = depRe.exec(body)) !== null) {
+      const depAttrs = dep[1]!;
+      const depBlock = dep[2]!;
+      if (/\bdatasource='Parameters'/.test(depAttrs)) continue;
+      const colRe = /<column\b[^>]*\bname='\[([^\]]+)\]'/g;
+      let c: RegExpExecArray | null;
+      while ((c = colRe.exec(depBlock)) !== null) {
+        const field = c[1]!;
+        if (GENERATED_FIELDS.has(field)) continue;
+        if (field.includes(":")) continue; // column-instance, checked via its column
+        if (!known.has(field.toLowerCase())) {
+          errors.push({
+            code: "FIELD_NOT_FOUND",
+            message: `Worksheet '${name}' references unknown field '${field}'.`,
+            suggestions: nearestMatches(field, fields),
+          });
+        }
       }
     }
   }
@@ -179,6 +186,57 @@ export function validateWorksheetReferences(twbXml: string): ValidationResult {
   return errors.length ? fail(errors) : ok();
 }
 
+/**
+ * Validates dashboards: every worksheet referenced by a dashboard zone (chart or
+ * filter zone) and by each `<window class='dashboard'>` viewpoint must exist as a
+ * real `<worksheet>`. Prevents dangling references that fail to open in Tableau.
+ */
+export function validateDashboardReferences(twbXml: string): ValidationResult {
+  const worksheets = new Set(existingWorksheetNames(twbXml));
+  const errors: StructuredError[] = [];
+
+  const dashRe = /<dashboard\b[^>]*\bname='([^']*)'>([\s\S]*?)<\/dashboard>/g;
+  let d: RegExpExecArray | null;
+  while ((d = dashRe.exec(twbXml)) !== null) {
+    const dashName = d[1]!;
+    const body = d[2]!;
+    // Only <zone> elements carry worksheet references via name=; skip datasource
+    // and datasource-dependencies (their name= is the datasource id / field).
+    const zonesBlock = /<zones>([\s\S]*?)<\/zones>/.exec(body)?.[1] ?? "";
+    const zoneRe = /<zone\b([^>]*)>/g;
+    let z: RegExpExecArray | null;
+    while ((z = zoneRe.exec(zonesBlock)) !== null) {
+      const attrs = z[1]!;
+      const nm = /\bname='([^']*)'/.exec(attrs)?.[1];
+      if (!nm) continue;
+      if (!worksheets.has(nm)) {
+        errors.push({
+          code: "VALIDATION_FAILED",
+          message: `Dashboard '${dashName}' references missing worksheet '${nm}'.`,
+        });
+      }
+    }
+  }
+
+  const winRe = /<window class='dashboard' name='([^']*)'>([\s\S]*?)<\/window>/g;
+  let w: RegExpExecArray | null;
+  while ((w = winRe.exec(twbXml)) !== null) {
+    const dashName = w[1]!;
+    const vpRe = /<viewpoint name='([^']*)'/g;
+    let v: RegExpExecArray | null;
+    while ((v = vpRe.exec(w[2]!)) !== null) {
+      if (!worksheets.has(v[1]!)) {
+        errors.push({
+          code: "VALIDATION_FAILED",
+          message: `Dashboard '${dashName}' viewpoint references missing worksheet '${v[1]}'.`,
+        });
+      }
+    }
+  }
+
+  return errors.length ? fail(errors) : ok();
+}
+
 /** Validates TWBX archive structure (spec section 61). */
 export function validateTwbxStructure(opened: OpenedTwbx): ValidationResult {
   const errors: StructuredError[] = [];
@@ -209,6 +267,7 @@ export function validateGeneratedTwb(
     validateDatasourceReferences(twbXml, lock),
     validateFieldExistence(twbXml, fields, targetWorksheets),
     validateWorksheetReferences(twbXml),
+    validateDashboardReferences(twbXml),
   ];
   const errors = results.flatMap((r) => r.errors);
   const warnings = results.flatMap((r) => r.warnings);

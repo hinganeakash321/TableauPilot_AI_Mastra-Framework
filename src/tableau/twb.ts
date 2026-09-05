@@ -21,6 +21,7 @@ import type {
   DataType,
   FieldRole,
 } from "../mastra/schemas/common.js";
+import { isAggregateFormula } from "./compiler/columnInstance.js";
 
 /** Decodes XML entities in attribute/text values. */
 function xmlUnescape(value: string): string {
@@ -195,7 +196,9 @@ function parseFields(
       role: inferRole(dataType, aggregation),
       defaultAggregation: aggregation,
       isCalculated: false,
+      aggregated: false,
       datasourceId,
+      dependsOn: [],
     });
   }
 
@@ -217,8 +220,10 @@ function parseFields(
     const defaultFormat = attr(tag, "default-format");
 
     const calcMatch = /<calculation\b[^>]*\bformula='([^']*)'/.exec(inner);
+    let aggregated = false;
     if (calcMatch) {
       const formula = xmlUnescape(calcMatch[1]!);
+      aggregated = isAggregateFormula(formula);
       calculated.push({
         name,
         caption,
@@ -229,11 +234,22 @@ function parseFields(
       });
     }
 
+    // Source columns this field derives from. Bins/groups reference their source
+    // via `<calculation ... column='[patient_age]'>`; these must be co-declared
+    // in every worksheet that uses/filters the derived field.
+    const dependsOn: string[] = [];
+    for (const cm of inner.matchAll(/<calculation\b[^>]*\bcolumn='(\[[^']*\])'/g)) {
+      const src = stripBrackets(xmlUnescape(cm[1]!));
+      if (src && src !== name && !dependsOn.includes(src)) dependsOn.push(src);
+    }
+
     const existing = byName.get(name.toLowerCase());
-    const role: FieldRole =
-      (roleRaw as FieldRole | undefined) ??
-      existing?.role ??
-      inferRole(dataType, existing?.defaultAggregation);
+    // An already-aggregated calc is always a measure used as AGG(field).
+    const role: FieldRole = aggregated
+      ? "measure"
+      : ((roleRaw as FieldRole | undefined) ??
+        existing?.role ??
+        inferRole(dataType, existing?.defaultAggregation));
     byName.set(name.toLowerCase(), {
       name,
       caption: caption ?? existing?.caption,
@@ -241,8 +257,11 @@ function parseFields(
       role,
       defaultAggregation: existing?.defaultAggregation,
       isCalculated: Boolean(calcMatch) || existing?.isCalculated || false,
+      aggregated: aggregated || existing?.aggregated || false,
       datasourceId,
       defaultFormat: defaultFormat ?? existing?.defaultFormat,
+      dependsOn:
+        dependsOn.length > 0 ? dependsOn : (existing?.dependsOn ?? []),
     });
   }
 

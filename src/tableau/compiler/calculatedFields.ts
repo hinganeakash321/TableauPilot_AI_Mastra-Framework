@@ -14,6 +14,7 @@ import type { FieldInfo } from "../../mastra/schemas/workbook.js";
 import type { DatasourceLock } from "../../mastra/schemas/datasource.js";
 import type { DataType, FieldRole } from "../../mastra/schemas/common.js";
 import { xmlEscape } from "../xml.js";
+import { isAggregateFormula } from "./columnInstance.js";
 
 /** Escapes a string for use inside a RegExp. */
 function escapeRegExp(value: string): string {
@@ -157,24 +158,44 @@ export function addCalculatedFields(
       continue;
     }
 
+    // A formula that already contains a top-level aggregate (e.g.
+    // SUM([Profit])/SUM([Sales])) is itself an aggregate measure. It must be used
+    // on shelves as AGG(field) and never re-aggregated with SUM.
+    const aggregated = isAggregateFormula(calc.formula);
     const dataType: DataType = calc.dataType ?? inferDataType(calc.formula);
-    const role: FieldRole =
-      calc.role ??
-      (dataType === "real" || dataType === "integer" ? "measure" : "dimension");
+    const role: FieldRole = aggregated
+      ? "measure"
+      : (calc.role ??
+        (dataType === "real" || dataType === "integer" ? "measure" : "dimension"));
     const synthetic = uniqueCalcName(twbXml, usedNames);
 
     columnsToInsert.push(
       calcColumnXml(synthetic, { caption: label, dataType, role, formula: calc.formula }),
     );
 
+    // Fields referenced in the formula (e.g. [Profit], [Sales]) are source
+    // columns this calc depends on - captured so worksheets that use/filter the
+    // calc also declare them (resolved by name OR caption at emit time).
+    const dependsOn = [
+      ...new Set(
+        [...calc.formula.matchAll(/\[([^\]]+)\]/g)]
+          .map((m) => m[1]!.trim())
+          .filter((n) => n && n.toLowerCase() !== label.toLowerCase()),
+      ),
+    ];
+
     const info: FieldInfo = {
       name: synthetic,
       caption: label,
       dataType,
       role,
-      defaultAggregation: role === "measure" ? "sum" : undefined,
+      // Aggregated calcs carry no default aggregation - AGG is applied via the
+      // `aggregated` flag when they are placed on a shelf.
+      defaultAggregation: role === "measure" && !aggregated ? "sum" : undefined,
       isCalculated: true,
+      aggregated,
       datasourceId: lock.datasourceId,
+      dependsOn,
     };
     newFields.push(info);
     existingByLabel.set(label.toLowerCase(), info);

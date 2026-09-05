@@ -33,6 +33,48 @@ export const AggregationSchema = z.enum([
 ]);
 export type Aggregation = z.infer<typeof AggregationSchema>;
 
+/**
+ * A hex color string like `#4e79a7` (6 hex digits) or `#4e79a7ff` (8 with alpha),
+ * as Tableau writes color values in style rules and palettes.
+ */
+export const HexColorSchema = z
+  .string()
+  .regex(
+    /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/,
+    "Expected a hex color like #4e79a7 (or #4e79a7ff with alpha)",
+  );
+export type HexColor = z.infer<typeof HexColorSchema>;
+
+/** Text alignment for titles and formatted runs. */
+export const FontAlignmentSchema = z.enum(["left", "center", "right"]);
+export type FontAlignment = z.infer<typeof FontAlignmentSchema>;
+
+/**
+ * Reusable text formatting for a title (dashboard title band, worksheet title,
+ * or filter panel heading). Maps to a Tableau `<run>`'s font attributes plus an
+ * optional zone `background-color`.
+ */
+export const TextFormatSchema = z.object({
+  fontSize: z.number().int().min(6).max(72).optional(),
+  color: HexColorSchema.optional(),
+  bold: z.boolean().optional(),
+  alignment: FontAlignmentSchema.optional(),
+  /** Tableau font name, e.g. "Tableau Bold", "Tableau Book". */
+  fontName: z.string().optional(),
+  /** Background color behind the title text (zone background). */
+  backgroundColor: HexColorSchema.optional(),
+});
+export type TextFormat = z.infer<typeof TextFormatSchema>;
+
+/** A zone border (container border) for dashboard layout. */
+export const BorderSpecSchema = z.object({
+  color: HexColorSchema.default("#000000"),
+  style: z.enum(["none", "solid", "dashed", "dotted"]).default("none"),
+  /** Border width in px (0 = no border). */
+  width: z.number().int().min(0).max(20).default(0),
+});
+export type BorderSpec = z.infer<typeof BorderSpecSchema>;
+
 /** Date derivations (date parts / truncations) for date dimensions. */
 export const DateDerivationSchema = z.enum([
   "none",

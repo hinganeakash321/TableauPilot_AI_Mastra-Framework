@@ -1,0 +1,659 @@
+<dashboard enable-sort-zone-taborder='true' name='Sample Dashboard Fixed size'>
+      <style>
+        <style-rule element='table'>
+          <format attr='background-color' value='#e6e6e6' />
+        </style-rule>
+      </style>
+      <size maxheight='1200' maxwidth='1200' minheight='1200' minwidth='1200' sizing-mode='fixed' />
+      <datasources>
+        <datasource caption='Orders+ (Sample - APAC Superstore)' name='federated.10qdv2g11ishnn1d8ylfn1hvu2ys' />
+      </datasources>
+      <datasource-dependencies datasource='federated.10qdv2g11ishnn1d8ylfn1hvu2ys'>
+        <column datatype='string' name='[Category]' role='dimension' type='nominal' />
+        <column datatype='string' name='[Country/Region]' role='dimension' semantic-role='[Country].[ISO3166_2]' type='nominal' />
+        <column datatype='date' name='[Order Date]' role='dimension' type='ordinal' />
+        <column datatype='string' name='[Person]' role='dimension' type='nominal' />
+        <column datatype='string' name='[Region]' role='dimension' type='nominal' />
+        <column datatype='string' name='[Segment]' role='dimension' type='nominal' />
+        <column datatype='string' name='[Ship Mode]' role='dimension' type='nominal' />
+        <column datatype='string' name='[State]' role='dimension' semantic-role='[State].[Name]' type='nominal' />
+        <column datatype='string' name='[Sub-Category]' role='dimension' type='nominal' />
+        <column-instance column='[Order Date]' derivation='MY' name='[my:Order Date:ok]' pivot='key' type='ordinal' />
+        <column-instance column='[Category]' derivation='None' name='[none:Category:nk]' pivot='key' type='nominal' />
+        <column-instance column='[Country/Region]' derivation='None' name='[none:Country/Region:nk]' pivot='key' type='nominal' />
+        <column-instance column='[Person]' derivation='None' name='[none:Person:nk]' pivot='key' type='nominal' />
+        <column-instance column='[Region]' derivation='None' name='[none:Region:nk]' pivot='key' type='nominal' />
+        <column-instance column='[Segment]' derivation='None' name='[none:Segment:nk]' pivot='key' type='nominal' />
+        <column-instance column='[Ship Mode]' derivation='None' name='[none:Ship Mode:nk]' pivot='key' type='nominal' />
+        <column-instance column='[State]' derivation='None' name='[none:State:nk]' pivot='key' type='nominal' />
+        <column-instance column='[Sub-Category]' derivation='None' name='[none:Sub-Category:nk]' pivot='key' type='nominal' />
+      </datasource-dependencies>
+      <zones>
+        <zone h='100000' id='4' type-v2='layout-basic' w='100000' x='0' y='0'>
+          <zone h='98666' id='43' param='horz' type-v2='layout-flow' w='98666' x='667' y='667'>
+            <zone h='98666' id='3' param='vert' type-v2='layout-flow' w='98666' x='667' y='667'>
+              <zone fixed-size='50' h='4167' id='6' is-fixed='true' layout-strategy-id='distribute-evenly' param='vert' type-v2='layout-flow' w='98666' x='667' y='667'>
+                <zone h='4166' id='8' type-v2='text' w='98666' x='667' y='667'>
+                  <formatted-text>
+                    <run bold='true' fontalignment='1' fontcolor='#1b1b1b' fontname='Tableau Bold' fontsize='16'>Superstore Analysis</run>
+                  </formatted-text>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                  </zone-style>
+                </zone>
+              </zone>
+              <zone h='94499' id='7' param='horz' type-v2='layout-flow' w='98666' x='667' y='4834'>
+                <zone h='94499' id='11' param='vert' type-v2='layout-flow' w='81332' x='667' y='4834'>
+                  <zone fixed-size='120' h='10000' id='13' is-fixed='true' layout-strategy-id='distribute-evenly' param='horz' type-v2='layout-flow' w='81332' x='667' y='4834'>
+                    <zone h='10000' id='16' param='horz' type-v2='layout-flow' w='16333' x='667' y='4833'>
+                      <zone h='9334' id='21' name='Sample KPI Chart' show-title='false' w='15667' x='1000' y='5166'>
+                        <layout-cache cell-count-w='1' type-h='cell' type-w='cell' />
+                        <zone-style>
+                          <format attr='border-color' value='#000000' />
+                          <format attr='border-style' value='none' />
+                          <format attr='border-width' value='0' />
+                          <format attr='margin' value='4' />
+                        </zone-style>
+                      </zone>
+                      <zone-style>
+                        <format attr='border-color' value='#000000' />
+                        <format attr='border-style' value='none' />
+                        <format attr='border-width' value='0' />
+                        <format attr='margin' value='4' />
+                        <format attr='background-color' value='#ffffff' />
+                      </zone-style>
+                    </zone>
+                    <zone h='10000' id='20' param='horz' type-v2='layout-flow' w='16250' x='17000' y='4833'>
+                      <zone h='9334' id='22' name='Sample KPI Chart 2' show-title='false' w='15584' x='17333' y='5166'>
+                        <layout-cache cell-count-w='1' type-h='cell' type-w='cell' />
+                        <zone-style>
+                          <format attr='border-color' value='#000000' />
+                          <format attr='border-style' value='none' />
+                          <format attr='border-width' value='0' />
+                          <format attr='margin' value='4' />
+                        </zone-style>
+                      </zone>
+                      <zone-style>
+                        <format attr='border-color' value='#000000' />
+                        <format attr='border-style' value='none' />
+                        <format attr='border-width' value='0' />
+                        <format attr='margin' value='4' />
+                        <format attr='background-color' value='#ffffff' />
+                      </zone-style>
+                    </zone>
+                    <zone h='10000' id='19' param='horz' type-v2='layout-flow' w='16250' x='33250' y='4833'>
+                      <zone h='9334' id='23' name='Sample KPI Chart 3' show-title='false' w='15584' x='33583' y='5166'>
+                        <layout-cache cell-count-w='1' type-h='cell' type-w='cell' />
+                        <zone-style>
+                          <format attr='border-color' value='#000000' />
+                          <format attr='border-style' value='none' />
+                          <format attr='border-width' value='0' />
+                          <format attr='margin' value='4' />
+                        </zone-style>
+                      </zone>
+                      <zone-style>
+                        <format attr='border-color' value='#000000' />
+                        <format attr='border-style' value='none' />
+                        <format attr='border-width' value='0' />
+                        <format attr='margin' value='4' />
+                        <format attr='background-color' value='#ffffff' />
+                      </zone-style>
+                    </zone>
+                    <zone h='10000' id='18' param='horz' type-v2='layout-flow' w='16250' x='49500' y='4833'>
+                      <zone h='9334' id='24' name='Sample KPI Chart 4' show-title='false' w='15584' x='49833' y='5166'>
+                        <layout-cache cell-count-w='1' type-h='cell' type-w='cell' />
+                        <zone-style>
+                          <format attr='border-color' value='#000000' />
+                          <format attr='border-style' value='none' />
+                          <format attr='border-width' value='0' />
+                          <format attr='margin' value='4' />
+                        </zone-style>
+                      </zone>
+                      <zone-style>
+                        <format attr='border-color' value='#000000' />
+                        <format attr='border-style' value='none' />
+                        <format attr='border-width' value='0' />
+                        <format attr='margin' value='4' />
+                        <format attr='background-color' value='#ffffff' />
+                      </zone-style>
+                    </zone>
+                    <zone h='10000' id='17' param='horz' type-v2='layout-flow' w='16250' x='65750' y='4833'>
+                      <zone h='9334' id='25' name='Sample KPI Chart 5' show-title='false' w='15584' x='66083' y='5166'>
+                        <layout-cache cell-count-w='1' type-h='cell' type-w='cell' />
+                        <zone-style>
+                          <format attr='border-color' value='#000000' />
+                          <format attr='border-style' value='none' />
+                          <format attr='border-width' value='0' />
+                          <format attr='margin' value='4' />
+                        </zone-style>
+                      </zone>
+                      <zone-style>
+                        <format attr='border-color' value='#000000' />
+                        <format attr='border-style' value='none' />
+                        <format attr='border-width' value='0' />
+                        <format attr='margin' value='4' />
+                        <format attr='background-color' value='#ffffff' />
+                      </zone-style>
+                    </zone>
+                  </zone>
+                  <zone fixed-size='300' h='25000' id='14' is-fixed='true' layout-strategy-id='distribute-evenly' param='horz' type-v2='layout-flow' w='81332' x='667' y='14834'>
+                    <zone fixed-size='300' h='25000' id='27' is-fixed='true' param='horz' type-v2='layout-flow' w='27166' x='667' y='14833'>
+                      <zone h='24334' id='28' name='Sample vertical Bar Chart' w='26500' x='1000' y='15166'>
+                        <layout-cache cell-count-w='3' minheight='197' type-h='scalable' type-w='cell' />
+                        <zone-style>
+                          <format attr='border-color' value='#000000' />
+                          <format attr='border-style' value='none' />
+                          <format attr='border-width' value='0' />
+                          <format attr='margin' value='4' />
+                        </zone-style>
+                      </zone>
+                      <zone-style>
+                        <format attr='border-color' value='#000000' />
+                        <format attr='border-style' value='none' />
+                        <format attr='border-width' value='0' />
+                        <format attr='margin' value='4' />
+                        <format attr='background-color' value='#ffffff' />
+                      </zone-style>
+                    </zone>
+                    <zone fixed-size='300' h='25000' id='29' is-fixed='true' param='horz' type-v2='layout-flow' w='27084' x='27833' y='14833'>
+                      <zone h='24334' id='31' name='Sample Donut Chart' w='26418' x='28166' y='15166'>
+                        <layout-cache cell-count-w='1' minheight='137' type-h='scalable' type-w='cell' />
+                        <zone-style>
+                          <format attr='border-color' value='#000000' />
+                          <format attr='border-style' value='none' />
+                          <format attr='border-width' value='0' />
+                          <format attr='margin' value='4' />
+                        </zone-style>
+                      </zone>
+                      <zone-style>
+                        <format attr='border-color' value='#000000' />
+                        <format attr='border-style' value='none' />
+                        <format attr='border-width' value='0' />
+                        <format attr='margin' value='4' />
+                        <format attr='background-color' value='#ffffff' />
+                      </zone-style>
+                    </zone>
+                    <zone h='25000' id='30' param='horz' type-v2='layout-flow' w='27083' x='54917' y='14833'>
+                      <zone h='24334' id='32' name='Sample horizontal Bar Chart' w='26417' x='55250' y='15166'>
+                        <layout-cache cell-count-h='4' minwidth='200' non-cell-size-h='57' type-h='cell' type-w='scalable' />
+                        <zone-style>
+                          <format attr='border-color' value='#000000' />
+                          <format attr='border-style' value='none' />
+                          <format attr='border-width' value='0' />
+                          <format attr='margin' value='4' />
+                        </zone-style>
+                      </zone>
+                      <zone-style>
+                        <format attr='border-color' value='#000000' />
+                        <format attr='border-style' value='none' />
+                        <format attr='border-width' value='0' />
+                        <format attr='margin' value='4' />
+                        <format attr='background-color' value='#ffffff' />
+                      </zone-style>
+                    </zone>
+                  </zone>
+                  <zone fixed-size='300' h='25000' id='33' is-fixed='true' param='horz' type-v2='layout-flow' w='81332' x='667' y='39834'>
+                    <zone fixed-size='300' h='25000' id='35' is-fixed='true' param='horz' type-v2='layout-flow' w='25667' x='667' y='39834'>
+                      <zone h='24334' id='36' name='sample scatter plot' w='25001' x='1000' y='40167'>
+                        <layout-cache minheight='192' minwidth='145' type-h='scalable' type-w='scalable' />
+                        <zone-style>
+                          <format attr='border-color' value='#000000' />
+                          <format attr='border-style' value='none' />
+                          <format attr='border-width' value='0' />
+                          <format attr='margin' value='4' />
+                        </zone-style>
+                      </zone>
+                      <zone-style>
+                        <format attr='border-color' value='#000000' />
+                        <format attr='border-style' value='none' />
+                        <format attr='border-width' value='0' />
+                        <format attr='margin' value='4' />
+                        <format attr='background-color' value='#ffffff' />
+                      </zone-style>
+                    </zone>
+                    <zone h='25000' id='38' param='horz' type-v2='layout-flow' w='55665' x='26334' y='39834'>
+                      <zone h='24334' id='39' name='Sample Symbol Map' w='54999' x='26667' y='40167'>
+                        <layout-cache minheight='238' minwidth='202' type-h='scalable' type-w='scalable' />
+                        <zone-style>
+                          <format attr='border-color' value='#000000' />
+                          <format attr='border-style' value='none' />
+                          <format attr='border-width' value='0' />
+                          <format attr='margin' value='4' />
+                        </zone-style>
+                      </zone>
+                      <zone-style>
+                        <format attr='border-color' value='#000000' />
+                        <format attr='border-style' value='none' />
+                        <format attr='border-width' value='0' />
+                        <format attr='margin' value='4' />
+                        <format attr='background-color' value='#ffffff' />
+                      </zone-style>
+                    </zone>
+                  </zone>
+                  <zone h='34499' id='55' param='horz' type-v2='layout-flow' w='81332' x='667' y='64834'>
+                    <zone fixed-size='400' h='34499' id='57' is-fixed='true' layout-strategy-id='distribute-evenly' param='vert' type-v2='layout-flow' w='33333' x='667' y='64834'>
+                      <zone h='17250' id='59' param='vert' type-v2='layout-flow' w='33333' x='667' y='64833'>
+                        <zone h='16584' id='61' name='Sample bubble chart' w='32667' x='1000' y='65166'>
+                          <layout-cache cell-count-h='1' cell-count-w='1' non-cell-size-h='37' type-h='cell' type-w='cell' />
+                          <zone-style>
+                            <format attr='border-color' value='#000000' />
+                            <format attr='border-style' value='none' />
+                            <format attr='border-width' value='0' />
+                            <format attr='margin' value='4' />
+                          </zone-style>
+                        </zone>
+                        <zone-style>
+                          <format attr='border-color' value='#000000' />
+                          <format attr='border-style' value='none' />
+                          <format attr='border-width' value='0' />
+                          <format attr='margin' value='4' />
+                          <format attr='background-color' value='#ffffff' />
+                        </zone-style>
+                      </zone>
+                      <zone h='17250' id='60' param='vert' type-v2='layout-flow' w='33333' x='667' y='82083'>
+                        <zone h='16584' id='62' name='Sample tree map' w='32667' x='1000' y='82416'>
+                          <layout-cache cell-count-h='1' cell-count-w='1' non-cell-size-h='37' type-h='cell' type-w='cell' />
+                          <zone-style>
+                            <format attr='border-color' value='#000000' />
+                            <format attr='border-style' value='none' />
+                            <format attr='border-width' value='0' />
+                            <format attr='margin' value='4' />
+                          </zone-style>
+                        </zone>
+                        <zone-style>
+                          <format attr='border-color' value='#000000' />
+                          <format attr='border-style' value='none' />
+                          <format attr='border-width' value='0' />
+                          <format attr='margin' value='4' />
+                          <format attr='background-color' value='#ffffff' />
+                        </zone-style>
+                      </zone>
+                    </zone>
+                    <zone h='34499' id='58' param='horz' type-v2='layout-flow' w='47999' x='34000' y='64834'>
+                      <zone h='33833' id='63' name='Sample text table' w='47333' x='34333' y='65167'>
+                        <layout-cache cell-count-w='4' fixed-size-h='2832' non-cell-size-w='98' type-h='fixed' type-w='cell' />
+                        <zone-style>
+                          <format attr='border-color' value='#000000' />
+                          <format attr='border-style' value='none' />
+                          <format attr='border-width' value='0' />
+                          <format attr='margin' value='4' />
+                        </zone-style>
+                      </zone>
+                      <zone-style>
+                        <format attr='border-color' value='#000000' />
+                        <format attr='border-style' value='none' />
+                        <format attr='border-width' value='0' />
+                        <format attr='margin' value='4' />
+                        <format attr='background-color' value='#ffffff' />
+                      </zone-style>
+                    </zone>
+                  </zone>
+                </zone>
+                <zone fixed-size='200' h='94499' id='10' is-fixed='true' param='vert' type-v2='layout-flow' w='17334' x='81999' y='4834'>
+                  <zone fixed-size='42' forceUpdate='true' h='4167' id='41' is-fixed='true' type-v2='text' w='16668' x='82332' y='5167'>
+                    <formatted-text>
+                      <run bold='true' fontalignment='1' fontcolor='#1b1b1b' fontname='Tableau Semibold' fontsize='12'>Filters</run>
+                    </formatted-text>
+                    <zone-style>
+                      <format attr='border-color' value='#000000' />
+                      <format attr='border-style' value='none' />
+                      <format attr='border-width' value='0' />
+                      <format attr='margin' value='4' />
+                    </zone-style>
+                  </zone>
+                  <zone h='4334' id='44' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[my:Order Date:ok]' show-apply='true' type-v2='filter' values='database' w='16668' x='82332' y='9334'>
+                    <zone-style>
+                      <format attr='border-color' value='#000000' />
+                      <format attr='border-style' value='none' />
+                      <format attr='border-width' value='0' />
+                      <format attr='margin' value='4' />
+                    </zone-style>
+                  </zone>
+                  <zone h='4334' id='45' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Region:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='13668'>
+                    <zone-style>
+                      <format attr='border-color' value='#000000' />
+                      <format attr='border-style' value='none' />
+                      <format attr='border-width' value='0' />
+                      <format attr='margin' value='4' />
+                    </zone-style>
+                  </zone>
+                  <zone h='4334' id='46' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Country/Region:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='18002'>
+                    <zone-style>
+                      <format attr='border-color' value='#000000' />
+                      <format attr='border-style' value='none' />
+                      <format attr='border-width' value='0' />
+                      <format attr='margin' value='4' />
+                    </zone-style>
+                  </zone>
+                  <zone h='4334' id='47' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:State:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='22336'>
+                    <zone-style>
+                      <format attr='border-color' value='#000000' />
+                      <format attr='border-style' value='none' />
+                      <format attr='border-width' value='0' />
+                      <format attr='margin' value='4' />
+                    </zone-style>
+                  </zone>
+                  <zone h='4334' id='48' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Category:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='26670'>
+                    <zone-style>
+                      <format attr='border-color' value='#000000' />
+                      <format attr='border-style' value='none' />
+                      <format attr='border-width' value='0' />
+                      <format attr='margin' value='4' />
+                    </zone-style>
+                  </zone>
+                  <zone h='4334' id='49' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Sub-Category:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='31004'>
+                    <zone-style>
+                      <format attr='border-color' value='#000000' />
+                      <format attr='border-style' value='none' />
+                      <format attr='border-width' value='0' />
+                      <format attr='margin' value='4' />
+                    </zone-style>
+                  </zone>
+                  <zone h='4334' id='50' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Segment:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='35338'>
+                    <zone-style>
+                      <format attr='border-color' value='#000000' />
+                      <format attr='border-style' value='none' />
+                      <format attr='border-width' value='0' />
+                      <format attr='margin' value='4' />
+                    </zone-style>
+                  </zone>
+                  <zone h='4334' id='51' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Ship Mode:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='39672'>
+                    <zone-style>
+                      <format attr='border-color' value='#000000' />
+                      <format attr='border-style' value='none' />
+                      <format attr='border-width' value='0' />
+                      <format attr='margin' value='4' />
+                    </zone-style>
+                  </zone>
+                  <zone h='4334' id='52' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Person:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='44006'>
+                    <zone-style>
+                      <format attr='border-color' value='#000000' />
+                      <format attr='border-style' value='none' />
+                      <format attr='border-width' value='0' />
+                      <format attr='margin' value='4' />
+                    </zone-style>
+                  </zone>
+                  <zone h='50660' id='40' type-v2='empty' w='16668' x='82332' y='48340'>
+                    <zone-style>
+                      <format attr='border-color' value='#000000' />
+                      <format attr='border-style' value='none' />
+                      <format attr='border-width' value='0' />
+                      <format attr='margin' value='4' />
+                    </zone-style>
+                  </zone>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='background-color' value='#ffffff' />
+                  </zone-style>
+                </zone>
+              </zone>
+            </zone>
+          </zone>
+          <zone-style>
+            <format attr='border-color' value='#000000' />
+            <format attr='border-style' value='none' />
+            <format attr='border-width' value='0' />
+            <format attr='margin' value='8' />
+          </zone-style>
+        </zone>
+      </zones>
+      <devicelayouts>
+        <devicelayout auto-generated='true' name='Phone'>
+          <size maxheight='3350' minheight='3350' sizing-mode='vscroll' />
+          <zones>
+            <zone h='100000' id='79' type-v2='layout-basic' w='100000' x='0' y='0'>
+              <zone h='98666' id='78' param='vert' type-v2='layout-flow' w='98666' x='667' y='667'>
+                <zone h='4166' id='8' type-v2='text' w='98666' x='667' y='667'>
+                  <formatted-text>
+                    <run bold='true' fontalignment='1' fontcolor='#1b1b1b' fontname='Tableau Bold' fontsize='16'>Superstore Analysis</run>
+                  </formatted-text>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone h='4334' id='44' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[my:Order Date:ok]' show-apply='true' type-v2='filter' values='database' w='16668' x='82332' y='9334'>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone h='4334' id='45' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Region:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='13668'>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone h='4334' id='46' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Country/Region:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='18002'>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone h='4334' id='47' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:State:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='22336'>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone h='4334' id='48' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Category:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='26670'>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone h='4334' id='49' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Sub-Category:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='31004'>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone h='4334' id='50' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Segment:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='35338'>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone h='4334' id='51' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Ship Mode:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='39672'>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone h='4334' id='52' mode='checkdropdown' name='Sample KPI Chart' param='[federated.10qdv2g11ishnn1d8ylfn1hvu2ys].[none:Person:nk]' show-apply='true' type-v2='filter' values='relevant' w='16668' x='82332' y='44006'>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='104' h='9334' id='21' is-fixed='true' name='Sample KPI Chart' show-title='false' w='15667' x='1000' y='5166'>
+                  <layout-cache cell-count-w='1' type-h='cell' type-w='cell' />
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='104' h='9334' id='22' is-fixed='true' name='Sample KPI Chart 2' show-title='false' w='15584' x='17333' y='5166'>
+                  <layout-cache cell-count-w='1' type-h='cell' type-w='cell' />
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='104' h='9334' id='23' is-fixed='true' name='Sample KPI Chart 3' show-title='false' w='15584' x='33583' y='5166'>
+                  <layout-cache cell-count-w='1' type-h='cell' type-w='cell' />
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='104' h='9334' id='24' is-fixed='true' name='Sample KPI Chart 4' show-title='false' w='15584' x='49833' y='5166'>
+                  <layout-cache cell-count-w='1' type-h='cell' type-w='cell' />
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='104' h='9334' id='25' is-fixed='true' name='Sample KPI Chart 5' show-title='false' w='15584' x='66083' y='5166'>
+                  <layout-cache cell-count-w='1' type-h='cell' type-w='cell' />
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='42' forceUpdate='true' h='4167' id='41' type-v2='text' w='16668' x='82332' y='5167'>
+                  <formatted-text>
+                    <run bold='true' fontalignment='1' fontcolor='#1b1b1b' fontname='Tableau Semibold' fontsize='12'>Filters</run>
+                  </formatted-text>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='280' h='24334' id='28' is-fixed='true' name='Sample vertical Bar Chart' w='26500' x='1000' y='15166'>
+                  <layout-cache cell-count-w='3' minheight='197' type-h='scalable' type-w='cell' />
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='280' h='24334' id='31' is-fixed='true' name='Sample Donut Chart' w='26418' x='28166' y='15166'>
+                  <layout-cache cell-count-w='1' minheight='137' type-h='scalable' type-w='cell' />
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='280' h='24334' id='32' is-fixed='true' name='Sample horizontal Bar Chart' w='26417' x='55250' y='15166'>
+                  <layout-cache cell-count-h='4' minwidth='200' non-cell-size-h='57' type-h='cell' type-w='scalable' />
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='280' h='24334' id='36' is-fixed='true' name='sample scatter plot' w='25001' x='1000' y='40167'>
+                  <layout-cache minheight='192' minwidth='145' type-h='scalable' type-w='scalable' />
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='280' h='24334' id='39' is-fixed='true' name='Sample Symbol Map' w='54999' x='26667' y='40167'>
+                  <layout-cache minheight='238' minwidth='202' type-h='scalable' type-w='scalable' />
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='191' h='16584' id='61' is-fixed='true' name='Sample bubble chart' w='32667' x='1000' y='65166'>
+                  <layout-cache cell-count-h='1' cell-count-w='1' non-cell-size-h='37' type-h='cell' type-w='cell' />
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='280' h='33833' id='63' is-fixed='true' name='Sample text table' w='47333' x='34333' y='65167'>
+                  <layout-cache cell-count-w='4' fixed-size-h='2832' non-cell-size-w='98' type-h='fixed' type-w='cell' />
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='191' h='16584' id='62' is-fixed='true' name='Sample tree map' w='32667' x='1000' y='82416'>
+                  <layout-cache cell-count-h='1' cell-count-w='1' non-cell-size-h='37' type-h='cell' type-w='cell' />
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+              </zone>
+              <zone-style>
+                <format attr='border-color' value='#000000' />
+                <format attr='border-style' value='none' />
+                <format attr='border-width' value='0' />
+                <format attr='margin' value='8' />
+              </zone-style>
+            </zone>
+          </zones>
+        </devicelayout>
+      </devicelayouts>
+      <simple-id uuid='{D62591CF-09FC-477D-993A-4173A56CFA6F}' />
+    </dashboard>

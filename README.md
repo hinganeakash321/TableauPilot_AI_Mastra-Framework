@@ -115,9 +115,10 @@ See [`architecture.md`](architecture.md) and [`design.md`](design.md) for detail
 
 **Agent** — `tableauPilotAgent` (`src/mastra/agents/tableauPilotAgent.ts`): understands
 requirements, inspects metadata via tools, plans worksheets as structured output,
-enforces the datasource lock, and coordinates builds with human approval. Its
-instructions encode hard invariants (no new datasource, no raw XML, no dashboards,
-no modification without approval, never claim success without validation).
+enforces the datasource lock, and coordinates builds with human approval. It builds
+both worksheets and dashboards (a dashboard only arranges existing worksheets). Its
+instructions encode hard invariants (no new datasource, no raw XML, no modification
+without approval, never claim success without validation).
 
 **Tools** (`src/mastra/tools/*`) — each with Zod input/output schemas, structured
 errors, and safe logging:
@@ -126,6 +127,7 @@ errors, and safe logging:
 - *Datasource:* `validateDatasource`, `lockDatasource`, `validateDatasourceLock`, `applyDatasourceFilter`, `validateExtract`
 - *Worksheet:* `validateField`, `createWorksheet`, `modifyWorksheet` *(approval)*, `createCalculatedField`, `createParameter`, `addWorksheetFilter`, `validateWorksheet`
 - *Build:* `compileWorksheet`, `compileWorkbook`, `validateTwb`, `packageTwbx` *(approval)*, `validateTwbx`
+- *Dashboard:* `createDashboard`, `modifyDashboard` (sample-faithful layout + apply-to-all filters + use-as-filter actions)
 - *Data (read-only extract):* `inspectData`, `profileField`, `queryData`
 - *Deployment:* `connectTableauCloud`, `listProjects`, `resolveProject`, `validatePublish`, `publishWorkbook` *(approval)*, `verifyWorkbook`
 
@@ -372,7 +374,7 @@ Run these directly against the agent in Studio:
 2. **"Create a monthly sales trend."** → line chart, `MONTH(Order Date)` on columns, `SUM(Sales)` on rows.
 3. **"Create top 10 customers by sales."** → bar chart with a Top-10 filter on Customer by `SUM(Sales)`.
 4. **Request a non-existent field** (e.g. `Revenue`) → validation error with close-match suggestions.
-5. **Ask for a dashboard** → scope response: worksheets yes, dashboards out of scope.
+5. **"Build a dashboard from these sheets with a Region/Segment filter."** → sample-faithful dashboard (title band, chart grid, right Filters panel with multi-select + Apply, applied to all worksheets).
 6. **Attempt datasource replacement/reconnect** → refused with `DATASOURCE_LOCK_VIOLATION`.
 7. **Generate a workbook** → approve the plan → receive a validated `.twbx` artifact.
 8. **Deploy a workbook** → the deployment workflow suspends for **credentials** and again for **approval** before any publish.
@@ -427,7 +429,10 @@ sensitive data, and deployment tokens live only in server memory behind a handle
 
 ## Limitations
 
-- **Worksheets only** — dashboards are intentionally out of scope.
+- **Worksheets & dashboards** — dashboards arrange existing worksheets (title band, chart grid, right Filters panel, apply-to-all multi-select filters, use-as-filter actions), modeled on the sample dashboards.
+- **Dashboard sizing** — automatic, range (min/max bounds), or fixed (exact width×height); the agent asks which type you want on a new dashboard and can change it later. Individual container widths/heights are adjustable on request.
+- **Dashboard layout & formatting** — dashboard color, per-container background, outer/inner padding, container borders, and title-band / filter-heading font formatting; plus per-worksheet title formatting that shows on the dashboard.
+- **Advanced viz features** — per-member chart colors (hex palettes) + measure gradients, reference/average lines, row/column grand totals, discrete↔continuous field conversion, and parameters (create + reuse) usable in parameter-driven Top-N filters and calculated fields.
 - **Datasource is read-only** — no creation/replacement/reconnection, no Live↔Extract switch.
 - Chart types are limited to those the deterministic compiler supports (see `templates/registry`).
 - Hyper extracts are preserved as opaque artifacts; extract *contents* are not read or rewritten.

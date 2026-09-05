@@ -21,10 +21,27 @@ export const FieldInfoSchema = z.object({
   defaultAggregation: AggregationSchema.optional(),
   /** Whether this is a calculated field. */
   isCalculated: z.boolean().default(false),
+  /**
+   * Whether this field's value is ALREADY aggregated (its formula contains a
+   * top-level aggregate like SUM/AVG/COUNT/COUNTD/MIN/MAX/MEDIAN). Such fields
+   * must be placed on shelves as `AGG(field)` (Tableau `derivation='User'`,
+   * instance `[usr:...]`), never re-aggregated with SUM.
+   */
+  aggregated: z.boolean().default(false),
   /** Owning datasource id. */
   datasourceId: z.string(),
   /** Default number/date format string from the workbook, if present. */
   defaultFormat: z.string().optional(),
+  /**
+   * Names (unbracketed) of the SOURCE columns this field is derived from - e.g.
+   * a categorical-bin / group over `patient_age`, or a calculated field that
+   * references `[Sales]` and `[Profit]`. Empty for plain physical columns.
+   *
+   * Any worksheet that places or FILTERS a derived field must also declare these
+   * source columns in its `<datasource-dependencies>`, otherwise Tableau reports
+   * the derived field "does not exist" when it loads.
+   */
+  dependsOn: z.array(z.string()).default([]),
 });
 export type FieldInfo = z.infer<typeof FieldInfoSchema>;
 

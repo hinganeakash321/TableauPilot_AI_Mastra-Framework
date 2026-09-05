@@ -1,0 +1,46 @@
+<window class='dashboard' name='Sample Dashboard Fixed size'>
+      <viewpoints>
+        <viewpoint name='Sample Donut Chart'>
+          <zoom type='entire-view' />
+        </viewpoint>
+        <viewpoint name='Sample KPI Chart'>
+          <zoom type='entire-view' />
+        </viewpoint>
+        <viewpoint name='Sample KPI Chart 2'>
+          <zoom type='entire-view' />
+        </viewpoint>
+        <viewpoint name='Sample KPI Chart 3'>
+          <zoom type='entire-view' />
+        </viewpoint>
+        <viewpoint name='Sample KPI Chart 4'>
+          <zoom type='entire-view' />
+        </viewpoint>
+        <viewpoint name='Sample KPI Chart 5'>
+          <zoom type='entire-view' />
+        </viewpoint>
+        <viewpoint name='Sample Symbol Map'>
+          <zoom type='entire-view' />
+          <default-map-tool-selection tool='1' />
+        </viewpoint>
+        <viewpoint name='Sample bubble chart'>
+          <zoom type='entire-view' />
+        </viewpoint>
+        <viewpoint name='Sample horizontal Bar Chart'>
+          <zoom type='entire-view' />
+        </viewpoint>
+        <viewpoint name='Sample text table'>
+          <zoom type='fit-width' />
+        </viewpoint>
+        <viewpoint name='Sample tree map'>
+          <zoom type='entire-view' />
+        </viewpoint>
+        <viewpoint name='Sample vertical Bar Chart'>
+          <zoom type='entire-view' />
+        </viewpoint>
+        <viewpoint name='sample scatter plot'>
+          <zoom type='entire-view' />
+        </viewpoint>
+      </viewpoints>
+      <active id='-1' />
+      <simple-id uuid='{5F2CCF3D-27E3-440B-8D16-FCE73CCD1E8F}' />
+    </window>

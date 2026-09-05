@@ -6,4 +6,5 @@ export * from "./common.js";
 export * from "./datasource.js";
 export * from "./workbook.js";
 export * from "./worksheet.js";
+export * from "./dashboard.js";
 export * from "./deployment.js";
